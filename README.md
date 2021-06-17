@@ -159,7 +159,7 @@
 ![image](https://user-images.githubusercontent.com/81279673/122195310-35bd0980-ced1-11eb-89e9-c003836bda80.png)
 
 ### 완성된 1차 모형
-![image](https://user-images.githubusercontent.com/81279673/122315581-4f079980-cf55-11eb-9623-21bf64e67c45.png)
+![image](https://user-images.githubusercontent.com/81279673/122315667-76f6fd00-cf55-11eb-8d7c-aef0294c98af.png)
 
     - View Model 추가
     - 유비쿼터스 랭귀지 (업무현장에서 쓰는 용어)인 영어로 변경
