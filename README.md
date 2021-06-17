@@ -165,29 +165,32 @@
     - 유비쿼터스 랭귀지 (업무현장에서 쓰는 용어)인 영어로 변경
 
 ### 기능적 요구사항 검증
-![image](https://user-images.githubusercontent.com/81279673/120969885-ab282c00-c7a5-11eb-9dcc-aafb74c4d962.png)
+![image](https://user-images.githubusercontent.com/81279673/122316109-3cda2b00-cf56-11eb-85a2-f4dfd24973d0.png)
 
-    - 회의실 관리자가 회의실을 등록한다 (ok)
-    - 고객이 회의실을 신청한다. (ok)
-    - 고객이 결제한다 (ok)    
-    - 회의실이 할당되면 회의실 현황이 업데이트 된다 (ok)    
+    - 고객이 책을 선택하여 주문을 한다 (ok)
+    - 고객이 결제한다 (ok)
+    - 결제가 완료되면 주문내역이 서점으로 전달된다 (ok)    
+    - 서점에서 주문내역을 확인하여 배송을 한다 (ok)    
 
-![image](https://user-images.githubusercontent.com/81279673/120969797-9186e480-c7a5-11eb-8582-35a2517616e5.png)
+![image](https://user-images.githubusercontent.com/81279673/122317341-541a1800-cf58-11eb-8ff9-df3b85667a1d.png)
 
-    - 고객이 신청을 취소할 수 있다. (ok)
-    - 신청이 취소되면 회의실 할당이 취소된다. (ok)
+    - 고객이 주문을 취소할 수 있다 (ok)
+    - 주문이 취소되면 배송이 취소된다 (ok)
+    - 고객이 주문상태를 중간중간 조회한다 (ok)
+    - 주문상태가 바뀔 때 마다 카톡으로 알림을 보낸다 (ok)
+
 
 ### 비기능 요구사항 검증
-![image](https://user-images.githubusercontent.com/81279673/120970763-cfd0d380-c7a6-11eb-9a6b-4760792b3815.png)
+![image](https://user-images.githubusercontent.com/81279673/122317171-0b625f00-cf58-11eb-9a86-c194b8394bce.png)
 
     - 트랜잭션
-        1. 결제가 되지 않으면 회의실은 신청되지 않는다. `Sync 호출` 
+        1. 결제가 되지 않은 주문건은 아예 거래가 성립되지 않아야 한다 `Sync 호출` 
     - 장애격리
-        2. 회의실 관리 기능이 수행되지 않더라도 신청은 365일 24시간 가능해야 한다. `Async (event-driven)`, `Eventual Consistency`
-        3. 결제시스템이 과중되면 신청을 잠시동안 받지 않고 잠시후에 신청하도록 유도한다. `Circuit breaker`, `fallback`
+        2. 서점 배송 기능이 수행되지 않더라도 주문은 365일 24시간 받을 수 있어야 한다 `Async (event-driven)`, `Eventual Consistency`
+        3. 결제시스템이 과중되면 사용자를 잠시동안 받지 않고 결제를 잠시후에 하도록 유도한다 `Circuit breaker`, `fallback`
     - 성능
-        4. 고객은 회의실 현황을 언제든지 확인할 수 있어야 한다. `CQRS`
-        5. 신청 상태가 생성/취소되면 알림을 줄 수 있어야 한다. `Event driven`
+        4. 고객은 주문상태를 언제든지 확인할 수 있어야 한다 `CQRS`
+        5. 주문상태가 바뀔때마다 카톡 등으로 알림을 줄 수 있어야 한다 `Event driven`
 
 
 ### 완성된 모델
