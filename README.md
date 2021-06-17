@@ -159,10 +159,12 @@
 ![image](https://user-images.githubusercontent.com/81279673/122195310-35bd0980-ced1-11eb-89e9-c003836bda80.png)
 
 ### 완성된 1차 모형
-![image](https://user-images.githubusercontent.com/81279673/122320733-b3c6f200-cf5d-11eb-8656-d19ad5fb6cce.png)
+![image](https://user-images.githubusercontent.com/81279673/122315667-76f6fd00-cf55-11eb-8d7c-aef0294c98af.png)
 
     - View Model 추가
     - 유비쿼터스 랭귀지 (업무현장에서 쓰는 용어)인 영어로 변경
+    
+    
 
 ### 기능적 요구사항 검증
 ![image](https://user-images.githubusercontent.com/81279673/122316109-3cda2b00-cf56-11eb-85a2-f4dfd24973d0.png)
@@ -180,6 +182,7 @@
     - 주문상태가 바뀔 때 마다 카톡으로 알림을 보낸다 (ok)
 
 
+
 ### 비기능 요구사항 검증
 ![image](https://user-images.githubusercontent.com/81279673/122317171-0b625f00-cf58-11eb-9a86-c194b8394bce.png)
 
@@ -193,10 +196,12 @@
         5. 주문상태가 바뀔때마다 카톡 등으로 알림을 줄 수 있어야 한다 `Event driven`
 
 
+
 ### 완성된 모델
 ![image](https://user-images.githubusercontent.com/81279673/122315667-76f6fd00-cf55-11eb-8d7c-aef0294c98af.png)
 
     - 수정된 모델은 모든 요구사항을 커버함.
+
 
 ## 헥사고날 아키텍처 다이어그램 도출
 - 외부에서 들어오는 요청을 인바운드 포트를 호출해서 처리하는 인바운드 어댑터와 비즈니스 로직에서 들어온 요청을 회부 서비스를 호출해서 처리하는 아웃바운드 어댑터로 분리
