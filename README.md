@@ -235,9 +235,9 @@ mvn spring-boot:run
 
 ## DDD 의 적용
 
-- msaez.io에서 이벤트스토밍을 통해 DDD를 작성하고 Aggregate 단위로 Entity를 선언하여 구현을 진행하였다.
+- msaez.io에서 이벤트스토밍을 통해 DDD를 작성하고 각 서비스내에 도출된 핵심 Aggregate Root 객체를 Entity 로 선언하였다
+- 예시는 order 마이크로 서비스
 
-> Conference 서비스의 Conference.java
 ```java
 package hifive;
 
