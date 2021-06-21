@@ -365,79 +365,34 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 
 - 적용 후 REST API 의 테스트
 ```
-# app 서비스 책 주문 신청
+# app 서비스의 책 주문 신청
 http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000
 
-# conference 서비스의 회의실 신청 취소
-http delete http://localhost:8081/conferences/1
+# app 서비스의 책 주문 취소
+http DELETE http://localhost:8081/orders/1 
 
-# 회의실 상태 확인
-http GET http://localhost:8084/roomStates
+# customercenter 서비스의 주문 상태 조회
+http GET http://localhost:8084/orderStatusView
 
 # 주문 신청
-C:\workspace\flowerdelivery>http POST http://localhost:8088/orders storeName=KJSHOP itemName="장미 한바구니" qty=1 itemPrice=50000 userName=LKJ "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6WyJyZWFkIiwid3JpdGUiLCJ0cnVzdCJdLCJjb21wYW55IjoiVWVuZ2luZSIsImV4cCI6MTYyMTg1OTQ1NywiYXV0aG9yaXRpZXMiOlsiUk9MRV9UUlVTVEVEX0NMSUVOVCIsIlJPTEVfQ0xJRU5UIl0sImp0aSI6ImlGZGswclgrR21TUVErN2xNS3ZWVGhtZFUxOD0iLCJjbGllbnRfaWQiOiJ1ZW5naW5lLWNsaWVudCJ9.DdilwqGMzcVOvWg69oDcqteM3tk1W2laMDc_sdz8YHJcfD-ZIJG5N4w_pGbxpypTZSz5YlAExJiJpUYtq3dPHnWTC0L2H2BRdredFO62no43vA3QoPDtiXgdOf7BqOzpMCQs1mMY4NqteoaKiD8aE-jG64-hOPSRx_VxZJ1MKezH9g-bA89Ptqaw0Rkuw9j5LuHqTVh0NANG58hfg0HAN3Y73RWnvBHPa2jcAGJL8lu1VarIujeatBHEOsXWVBBydlft2zol3vBvZBaGRJfW7Jt8vCyjqEfIShmQf0WGvXWwlX8XH1Q77JL617_Lxzjz-3uiDsLg-kN5U2TaoVUijQ"
-HTTP/1.1 201 Created
-Cache-Control: no-cache, no-store, max-age=0, must-revalidate
-Content-Type: application/json;charset=UTF-8
-Date: Sun, 23 May 2021 14:31:12 GMT
-Expires: 0
-Location: http://localhost:8081/orders/4
-Pragma: no-cache
-Referrer-Policy: no-referrer
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-X-XSS-Protection: 1 ; mode=block
-transfer-encoding: chunked
+http POST http://localhost:8081/orders bookName=SUMMER qty=1 price=17000
 
-{
-    "_links": {
-        "order": {
-            "href": "http://localhost:8081/orders/4"
-        },
-        "self": {
-            "href": "http://localhost:8081/orders/4"
-        }
-    },
-    "itemName": "장미 한바구니",
-    "itemPrice": 50000,
-    "qty": 1,
-    "storeName": "KJSHOP",
-    "userName": "LKJ"
-}
+# app 서비스의 책 주문 조회
+http GET http://localhost:8081/orders
 
-# 주문상태 조회 
-C:\workspace\flowerdelivery>http GET localhost:8088/orders/4 "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6WyJyZWFkIiwid3JpdGUiLCJ0cnVzdCJdLCJjb21wYW55IjoiVWVuZ2luZSIsImV4cCI6MTYyMTg1OTQ1NywiYXV0aG9yaXRpZXMiOlsiUk9MRV9UUlVTVEVEX0NMSUVOVCIsIlJPTEVfQ0xJRU5UIl0sImp0aSI6ImlGZGswclgrR21TUVErN2xNS3ZWVGhtZFUxOD0iLCJjbGllbnRfaWQiOiJ1ZW5naW5lLWNsaWVudCJ9.DdilwqGMzcVOvWg69oDcqteM3tk1W2laMDc_sdz8YHJcfD-ZIJG5N4w_pGbxpypTZSz5YlAExJiJpUYtq3dPHnWTC0L2H2BRdredFO62no43vA3QoPDtiXgdOf7BqOzpMCQs1mMY4NqteoaKiD8aE-jG64-hOPSRx_VxZJ1MKezH9g-bA89Ptqaw0Rkuw9j5LuHqTVh0NANG58hfg0HAN3Y73RWnvBHPa2jcAGJL8lu1VarIujeatBHEOsXWVBBydlft2zol3vBvZBaGRJfW7Jt8vCyjqEfIShmQf0WGvXWwlX8XH1Q77JL617_Lxzjz-3uiDsLg-kN5U2TaoVUijQ"
-HTTP/1.1 200 OK
-Cache-Control: no-cache, no-store, max-age=0, must-revalidate
-Content-Type: application/hal+json;charset=UTF-8
-Date: Sun, 23 May 2021 14:32:16 GMT
-Expires: 0
-Pragma: no-cache
-Referrer-Policy: no-referrer
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-X-XSS-Protection: 1 ; mode=block
-transfer-encoding: chunked
+# app 서비스의 책 주문 조회
+http GET http://localhost:8082/pays
 
-{
-    "_links": {
-        "order": {
-            "href": "http://localhost:8081/orders/4"
-        },
-        "self": {
-            "href": "http://localhost:8081/orders/4"
-        }
-    },
-    "itemName": "장미 한바구니",
-    "itemPrice": 50000,
-    "qty": 1,
-    "storeName": "KJSHOP",
-    "userName": "LKJ"
-}
+# customercenter 서비스의 주문 상태 
+http GET http://localhost:8084/orderStatusView
 
 ```
-> 회의실 신청 후 Conference 동작 결과
-![Cap 2021-06-07 21-39-53-966](https://user-images.githubusercontent.com/80938080/121018071-f60f6700-c7d8-11eb-889d-fb674d1e8189.png)
+> 책 주문 신청 및 취소 결과 조회 (주문, 결제, 배송)
+![image](https://user-images.githubusercontent.com/81279673/122717872-2b22bb80-d2a7-11eb-84bb-2fa9a5f9f499.png)
+![image](https://user-images.githubusercontent.com/81279673/122718111-7d63dc80-d2a7-11eb-9fa3-372b13a0fd88.png)
+
+> 주문상태 조회 결과
+
 
 ## CQRS
 
