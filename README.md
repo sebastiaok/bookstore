@@ -372,7 +372,7 @@ http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000
 http DELETE http://localhost:8081/orders/1 
 
 # customercenter 서비스의 주문 상태 조회
-http GET http://localhost:8084/orderStatusView
+http GET http://localhost:8084/orderStatusViews
 
 # 주문 신청
 http POST http://localhost:8081/orders bookName=SUMMER qty=1 price=17000
@@ -384,7 +384,7 @@ http GET http://localhost:8081/orders
 http GET http://localhost:8082/pays
 
 # customercenter 서비스의 주문 상태 
-http GET http://localhost:8084/orderStatusView
+http GET http://localhost:8084/orderStatusViews
 
 ```
 > 책 주문 신청 및 취소 결과 조회 (주문, 결제, 배송)
