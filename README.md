@@ -241,8 +241,8 @@ mvn spring-boot:run
 ## DDD 의 적용
 
 - msaez.io에서 이벤트스토밍을 통해 DDD를 작성하고 각 서비스내에 도출된 핵심 Aggregate Root 객체를 Entity 로 선언하였다.
-- 아래 예시는 app Entity Order.java 구현내용이다.
 
+> Order.java 구현 내용
 ```java
 package bookstore;
 
@@ -365,8 +365,8 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 
 - 적용 후 REST API 의 테스트
 ```
-# conference 서비스의 회의실 신청
-http post http://localhost:8081/conferences status="" payId=0 roomNumber=1
+# app 서비스 책 주문 신청
+http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000
 
 # conference 서비스의 회의실 신청 취소
 http delete http://localhost:8081/conferences/1
@@ -508,79 +508,82 @@ server:
 
 ## 동기식 호출 과 Fallback 처리
 
-분석단계에서의 조건 중 하나로 Conference -> Pay 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
+결제처리가 되지 않으면 주문신청 처리되지 않도록 하는 비기능 요구사항이 있다. (트랜잭션-동기식 호출)
+호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
 
-- 결제서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
+- 결제(Pay)서비스를 호출하기 위에 FeignClient 를 활용하여 Proxy를 구현하였다. 
 
-> Pay 서비스의 external\PayService.java
+> (app) external\PayService.java
 
 ```java
-package hifive.external;
 
-@FeignClient(name="pay", url="http://pay:8080")
+package bookstore.external;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+
+@FeignClient(name="pay", url="http://pay:8082")
 public interface PayService {
 
-    @RequestMapping(method= RequestMethod.GET, path="/pays/paid")
-    public Map<String,String> paid(@RequestParam("status") String status, @RequestParam("conferenceId") Long conferenceId, @RequestParam("roomNumber") Long roomNumber);
+    @RequestMapping(method= RequestMethod.POST, path="/pays")
+    public void pay(@RequestBody Pay pay);
+
 }
 ```
 
-- 예약을 받은 직후(@PostPersist) 결제를 요청하도록 처리
+- 주문을 받은 직후(@PostPersist) 결제를 요청하도록 처리
 
-> Conference 서비스의 Conference.java (Entity)
+> (app) Order.java (Entity)
 
 ```java
-    @PostPersist //해당 엔티티를 저장한 후
     public void onPostPersist(){
-    
-        setStatus("CREATED");
-        Applied applied = new Applied();
-        //BeanUtils.copyProperties는 원본객체의 필드 값을 타겟 객체의 필드값으로 복사하는 유틸인데, 필드이름과 타입이 동일해야함.
-        applied.setConferenceId(this.getConferenceId());
-        applied.setConferenceStatus(this.getStatus());
-        applied.setRoomNumber(this.getRoomNumber());
-        applied.publishAfterCommit();
-        //신청내역이 카프카에 올라감
-        try {
-            // 결제 서비스 Request
-            Map<String, String> res = ConferenceApplication.applicationContext
-                    .getBean(hifive.external.PayService.class)
-                    .paid(applied);
-            //결제 아이디가 있고, 결제 상태로 돌아온 경우 회의 상태로 결제로 바꾼다.
-            if (res.get("status").equals("Req_complete")) {
-                this.setStatus("Req complete");
-            }
-            this.setPayId(Long.valueOf(res.get("payid")));
-            ConferenceApplication.applicationContext.getBean(javax.persistence.EntityManager.class).flush();
-            return;
-        }
-        catch (Exception e) {
-            System.out.println(e);
-        }
+
+        setStatus("Ordered");
+
+        // 주문내역 Pub
+        Ordered ordered = new Ordered();
+        ordered.setId(this.getId());
+        ordered.setBookName(this.getBookName());
+        ordered.setQty(this.getQty());
+        ordered.setPrice(this.getPrice());
+        ordered.setStatus("Ordered");
+        ordered.publishAfterCommit();
+
+        // pay request
+        bookstore.external.Pay pay = new bookstore.external.Pay();
+
+        pay.setOrderId(this.getId());
+        pay.setQty(this.getQty());
+        pay.setPrice(this.getPrice());
+        pay.setStatus("Paid");
+
+        AppApplication.applicationContext.getBean(bookstore.external.PayService.class).pay(pay);
+
     }
 ```
 
-- 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 결제 시스템이 장애가 나면 예약도 못받는다는 것을 확인:
+- 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 결제 시스템이 장애가 나면 주문도 못받는다는 것을 확인:
 
 
 ```
-# 결제 (pay) 서비스를 잠시 내려놓음 (ctrl+c)
+# 결제 (pay) 서비스를 잠시 내려놓음
 
-# 결제 처리
-http post http://localhost:8081/conferences status="" payId=0 roomNumber=1   #Fail
-http post http://localhost:8081/conferences status="" payId=0 roomNumber=2   #Fail
+# 주문 처리
+http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000    #Fail
 ```
 > 결제 요청 오류 발생
-![Cap 2021-06-07 22-24-26-184](https://user-images.githubusercontent.com/80938080/121024411-28bc5e00-c7df-11eb-9a84-d3095683d49c.png)
+![image](https://user-images.githubusercontent.com/81279673/122716723-979cbb00-d2a5-11eb-8d40-3690618fd539.png)
 ```
-#결제서비스 재기동
+# 결제 (pay) 서비스 재기동
 cd pay
 mvn spring-boot:run
 
 #주문처리
-http post http://localhost:8081/conferences status="" payId=0 roomNumber=1   #Success
-http post http://localhost:8081/conferences status="" payId=0 roomNumber=2   #Success
+http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000   #Success
 ```
+![image](https://user-images.githubusercontent.com/81279673/122716935-ddf21a00-d2a5-11eb-8bbd-fc4fd30f84ed.png)
 
 - 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
 
