@@ -153,10 +153,10 @@
         - General Domain:   pay : 결제서비스로 3rd Party 외부 서비스를 사용하는 것이 경쟁력이 높음 (핑크색으로 이후 전환할 예정)
 
 ### 폴리시 부착 (괄호는 수행주체, 폴리시 부착을 둘째단계에서 해놔도 상관 없음. 전체 연계가 초기에 드러남)
-![image](https://user-images.githubusercontent.com/81279673/122195197-19b96800-ced1-11eb-9b71-9fcbfe2587d4.png)
+![image](https://user-images.githubusercontent.com/81279673/122707951-05d98180-d296-11eb-85d6-632551763d1c.png)
 
 ### 폴리시의 이동과 컨텍스트 매핑 (점선은 Pub/Sub, 실선은 Req/Resp)
-![image](https://user-images.githubusercontent.com/81279673/122195310-35bd0980-ced1-11eb-89e9-c003836bda80.png)
+![image](https://user-images.githubusercontent.com/81279673/122708047-33262f80-d296-11eb-95e0-7d8ea49b507e.png)
 
 ### 완성된 1차 모형
 ![image](https://user-images.githubusercontent.com/81279673/122315667-76f6fd00-cf55-11eb-8d7c-aef0294c98af.png)
