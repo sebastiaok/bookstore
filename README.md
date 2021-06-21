@@ -214,159 +214,153 @@
 
 # 구현:
 
-분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 Bounded Context별로 마이크로서비스들을 스프링부트로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다. (각 서비스의 포트넘버는 8081 ~ 8084, 8088 이다)
+분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 Bounded Context별로 마이크로서비스들을 스프링부트로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다. 
 
 ```
-cd conference
-mvn spring-boot:run
+cd gateway
+mvn spring-boot:run 
+포트 : 8088
+
+cd app 
+mvn spring-boot:run 
+포트 : 8081 
 
 cd pay
 mvn spring-boot:run 
+포트 : 8082
 
-cd room
+cd delivery
 mvn spring-boot:run  
+포트 : 8083
 
 cd customerCenter
 mvn spring-boot:run 
-
-cd gateway
-mvn spring-boot:run
+포트 : 8084
 ```
 
 ## DDD 의 적용
 
-- msaez.io에서 이벤트스토밍을 통해 DDD를 작성하고 각 서비스내에 도출된 핵심 Aggregate Root 객체를 Entity 로 선언하였다
-- 예시는 order 마이크로 서비스
+- msaez.io에서 이벤트스토밍을 통해 DDD를 작성하고 각 서비스내에 도출된 핵심 Aggregate Root 객체를 Entity 로 선언하였다.
+- 아래 예시는 app Entity Order.java 구현내용이다.
 
 ```java
-package hifive;
+package bookstore;
 
-import java.util.Optional;
-import javax.annotation.PostConstruct;
 import javax.persistence.*;
 
-import java.util.Map;
-
 @Entity
-@Table(name="Conference_table")
-public class Conference{
+@Table(name="Order_table")
+public class Order {
 
-  @Id
-  @GeneratedValue(strategy=GenerationType.AUTO)
-  private Long conferenceId;
-  private String status;
-  private Long payId;
-  private Long roomNumber;
+    @Id
+    @GeneratedValue(strategy=GenerationType.AUTO)
+    private Long id;
+    private String bookName;
+    private Integer qty;
+    private Integer price;
+    private String status;
+    private String userName;
 
-  @PrePersist //해당 엔티티를 저장한 후
-  public void onPrePersist(){
-      
-    setStatus("CREATED");
-    Applied applied = new Applied();
-    //BeanUtils.copyProperties는 원본객체의 필드 값을 타겟 객체의 필드값으로 복사하는 유틸인데, 필드이름과 타입이 동일해야함.
-    applied.setConferenceId(this.getConferenceId());
-    applied.setConferenceStatus(this.getStatus());
-    applied.setRoomNumber(this.getRoomNumber());
-    applied.publishAfterCommit();
-    //신청내역이 카프카에 올라감
-    
-    Map<String, String> res = ConferenceApplication.applicationContext
-            .getBean(hifive.external.PayService.class)
-            .paid(applied);
-    //결제 아이디가 있고, 결제 상태로 돌아온 경우 회의 상태로 결제로 바꾼다.
-    if (res.get("status").equals("Req_complete")) {
-      this.setStatus("Req complete");
+    @PostPersist
+    public void onPostPersist(){
+
+        setStatus("Ordered");
+
+        // 주문내역 Pub
+        Ordered ordered = new Ordered();
+        ordered.setId(this.getId());
+        ordered.setBookName(this.getBookName());
+        ordered.setQty(this.getQty());
+        ordered.setPrice(this.getPrice());
+        ordered.setStatus("Ordered");
+        ordered.publishAfterCommit();
+
+        // pay request
+        bookstore.external.Pay pay = new bookstore.external.Pay();
+
+        pay.setOrderId(this.getId());
+        pay.setQty(this.getQty());
+        pay.setPrice(this.getPrice());
+        pay.setStatus("Paid");
+
+        AppApplication.applicationContext.getBean(bookstore.external.PayService.class).pay(pay);
+
     }
-    this.setPayId(Long.valueOf(res.get("payid")));
 
-    return;
-  }
+    @PreRemove
+    public void onPreRemove(){
 
-  @PreRemove //해당 엔티티를 삭제하기 전 (회의를 삭제하면 취소신청 이벤트 생성)
-  public void onPreRemove(){
-    System.out.println("#################################### PreRemove : ConferenceId=" + this.getConferenceId());
-    ApplyCanceled applyCanceled = new ApplyCanceled();
-    applyCanceled.setConferenceId(this.getConferenceId());
-    applyCanceled.setConferenceStatus("CANCELED");
-    applyCanceled.setPayId(this.getPayId());
-    applyCanceled.publishAfterCommit();
-    //삭제하고 ApplyCanceled 이벤트 카프카에 전송
-  }
+        OrderCancelled orderCancelled = new OrderCancelled();
+        orderCancelled.setId(this.getId());
+        orderCancelled.setBookName(this.getBookName());
+        orderCancelled.setQty(this.getQty());
+        orderCancelled.setPrice(this.getPrice());
+        orderCancelled.setStatus("OrderCancelled");    
+        orderCancelled.publishAfterCommit();
 
-  public Long getConferenceId() {
-    return conferenceId;
-  }
-  public void setConferenceId(Long conferenceId) {
-    this.conferenceId = conferenceId;
-  }
+    }
 
-  public String getStatus() {
-    return status;
-  }
-  public void setStatus(String status) {
-    this.status = status;
-  }
 
-  public Long getPayId() {
-    return payId;
-  }
-  public void setPayId(Long payId) {
-    this.payId = payId;
-  }
+    public Long getId() {
+        return id;
+    }
 
-  public Long getRoomNumber() {
-    return roomNumber;
-  }
-  public void setRoomNumber(Long roomNumber) {
-    this.roomNumber = roomNumber;
-  }
+    public void setId(Long id) {
+        this.id = id;
+    }
+    public String getBookName() {
+        return bookName;
+    }
+
+    public void setBookName(String bookName) {
+        this.bookName = bookName;
+    }
+    public Integer getQty() {
+        return qty;
+    }
+
+    public void setQty(Integer qty) {
+        this.qty = qty;
+    }
+    public Integer getPrice() {
+        return price;
+    }
+
+    public void setPrice(Integer price) {
+        this.price = price;
+    }
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
 }
-
 ```
 
 - Entity Pattern 과 Repository Pattern 을 적용하여 JPA 기반의 다양한 데이터소스 유형 (RDB or NoSQL) 에 대한 별도의 처리 없이 데이터 접근 어댑터를 자동 생성하기 위하여 Spring Data REST 의 RestRepository 를 적용하였다.
 
-> Conference 서비스의 ConferenceRepository.java
+> AppRepository.java 구현 내용
 ```java
-package hifive;
+package bookstore;
 
 import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 
-@RepositoryRestResource(collectionResourceRel="conferences", path="conferences")
-public interface ConferenceRepository extends PagingAndSortingRepository<Conference, Long>{
+@RepositoryRestResource(collectionResourceRel="orders", path="orders")
+public interface OrderRepository extends PagingAndSortingRepository<Order, Long>{
+
 
 }
-```
-> Conference 서비스의 PolicyHandler.java
-```java
-package hifive;
 
-import java.util.Optional;
-import hifive.config.kafka.KafkaProcessor;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.stream.annotation.StreamListener;
-import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.stereotype.Service;
-
-@Service
-public class PolicyHandler{
-    @Autowired ConferenceRepository conferenceRepository;
-
-    @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverAssigned_UpdateStatus(@Payload Assigned assigned){
-    
-        if(!assigned.validate()) return;
-        
-        Optional<Conference> confOptional = conferenceRepository.findById(assigned.getConferenceId());
-        Conference conference = confOptional.get();
-        conference.setPayId(assigned.getPayId());
-        conference.setStatus(assigned.getRoomStatus());
-        conferenceRepository.save(conference);
-    }
-}
 ```
 
 - 적용 후 REST API 의 테스트
@@ -379,6 +373,68 @@ http delete http://localhost:8081/conferences/1
 
 # 회의실 상태 확인
 http GET http://localhost:8084/roomStates
+
+# 주문 신청
+C:\workspace\flowerdelivery>http POST http://localhost:8088/orders storeName=KJSHOP itemName="장미 한바구니" qty=1 itemPrice=50000 userName=LKJ "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6WyJyZWFkIiwid3JpdGUiLCJ0cnVzdCJdLCJjb21wYW55IjoiVWVuZ2luZSIsImV4cCI6MTYyMTg1OTQ1NywiYXV0aG9yaXRpZXMiOlsiUk9MRV9UUlVTVEVEX0NMSUVOVCIsIlJPTEVfQ0xJRU5UIl0sImp0aSI6ImlGZGswclgrR21TUVErN2xNS3ZWVGhtZFUxOD0iLCJjbGllbnRfaWQiOiJ1ZW5naW5lLWNsaWVudCJ9.DdilwqGMzcVOvWg69oDcqteM3tk1W2laMDc_sdz8YHJcfD-ZIJG5N4w_pGbxpypTZSz5YlAExJiJpUYtq3dPHnWTC0L2H2BRdredFO62no43vA3QoPDtiXgdOf7BqOzpMCQs1mMY4NqteoaKiD8aE-jG64-hOPSRx_VxZJ1MKezH9g-bA89Ptqaw0Rkuw9j5LuHqTVh0NANG58hfg0HAN3Y73RWnvBHPa2jcAGJL8lu1VarIujeatBHEOsXWVBBydlft2zol3vBvZBaGRJfW7Jt8vCyjqEfIShmQf0WGvXWwlX8XH1Q77JL617_Lxzjz-3uiDsLg-kN5U2TaoVUijQ"
+HTTP/1.1 201 Created
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Content-Type: application/json;charset=UTF-8
+Date: Sun, 23 May 2021 14:31:12 GMT
+Expires: 0
+Location: http://localhost:8081/orders/4
+Pragma: no-cache
+Referrer-Policy: no-referrer
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1 ; mode=block
+transfer-encoding: chunked
+
+{
+    "_links": {
+        "order": {
+            "href": "http://localhost:8081/orders/4"
+        },
+        "self": {
+            "href": "http://localhost:8081/orders/4"
+        }
+    },
+    "itemName": "장미 한바구니",
+    "itemPrice": 50000,
+    "qty": 1,
+    "storeName": "KJSHOP",
+    "userName": "LKJ"
+}
+
+# 주문상태 조회 
+C:\workspace\flowerdelivery>http GET localhost:8088/orders/4 "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6WyJyZWFkIiwid3JpdGUiLCJ0cnVzdCJdLCJjb21wYW55IjoiVWVuZ2luZSIsImV4cCI6MTYyMTg1OTQ1NywiYXV0aG9yaXRpZXMiOlsiUk9MRV9UUlVTVEVEX0NMSUVOVCIsIlJPTEVfQ0xJRU5UIl0sImp0aSI6ImlGZGswclgrR21TUVErN2xNS3ZWVGhtZFUxOD0iLCJjbGllbnRfaWQiOiJ1ZW5naW5lLWNsaWVudCJ9.DdilwqGMzcVOvWg69oDcqteM3tk1W2laMDc_sdz8YHJcfD-ZIJG5N4w_pGbxpypTZSz5YlAExJiJpUYtq3dPHnWTC0L2H2BRdredFO62no43vA3QoPDtiXgdOf7BqOzpMCQs1mMY4NqteoaKiD8aE-jG64-hOPSRx_VxZJ1MKezH9g-bA89Ptqaw0Rkuw9j5LuHqTVh0NANG58hfg0HAN3Y73RWnvBHPa2jcAGJL8lu1VarIujeatBHEOsXWVBBydlft2zol3vBvZBaGRJfW7Jt8vCyjqEfIShmQf0WGvXWwlX8XH1Q77JL617_Lxzjz-3uiDsLg-kN5U2TaoVUijQ"
+HTTP/1.1 200 OK
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Content-Type: application/hal+json;charset=UTF-8
+Date: Sun, 23 May 2021 14:32:16 GMT
+Expires: 0
+Pragma: no-cache
+Referrer-Policy: no-referrer
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1 ; mode=block
+transfer-encoding: chunked
+
+{
+    "_links": {
+        "order": {
+            "href": "http://localhost:8081/orders/4"
+        },
+        "self": {
+            "href": "http://localhost:8081/orders/4"
+        }
+    },
+    "itemName": "장미 한바구니",
+    "itemPrice": 50000,
+    "qty": 1,
+    "storeName": "KJSHOP",
+    "userName": "LKJ"
+}
+
 ```
 > 회의실 신청 후 Conference 동작 결과
 ![Cap 2021-06-07 21-39-53-966](https://user-images.githubusercontent.com/80938080/121018071-f60f6700-c7d8-11eb-889d-fb674d1e8189.png)
