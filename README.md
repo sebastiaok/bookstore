@@ -358,48 +358,48 @@ import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 @RepositoryRestResource(collectionResourceRel="orders", path="orders")
 public interface OrderRepository extends PagingAndSortingRepository<Order, Long>{
 
-
 }
-
 ```
 
 - 적용 후 REST API 의 테스트
 ```
-# app 서비스의 책 주문 신청
+# app 서비스의 주문 신청
 http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000
 
-# app 서비스의 책 주문 취소
+# app 서비스의 주문 취소
 http DELETE http://localhost:8081/orders/1 
 
 # customercenter 서비스의 주문 상태 조회
 http GET http://localhost:8084/orderStatusViews
 
-# 주문 신청
+# app 서비스의 주문 신청
 http POST http://localhost:8081/orders bookName=SUMMER qty=1 price=17000
 
-# app 서비스의 책 주문 조회
+# app 서비스의 주문 조회
 http GET http://localhost:8081/orders
 
-# app 서비스의 책 주문 조회
+# pay 서비스의 결제 조회
 http GET http://localhost:8082/pays
 
-# customercenter 서비스의 주문 상태 
-http GET http://localhost:8084/orderStatusViews
-
+# store 서비스의 배송 조회
+http GET http://localhost:8082/pays
 ```
-> 책 주문 신청 및 취소 결과 조회 (주문, 결제, 배송)
-![image](https://user-images.githubusercontent.com/81279673/122717872-2b22bb80-d2a7-11eb-84bb-2fa9a5f9f499.png)
-![image](https://user-images.githubusercontent.com/81279673/122718111-7d63dc80-d2a7-11eb-9fa3-372b13a0fd88.png)
-
-> 주문상태 조회 결과
+> 주문 신청 및 취소 결과 조회 (주문, 결제, 배송)
+![image](https://user-images.githubusercontent.com/81279673/122730146-dede7800-d2b4-11eb-852b-15f984be4024.png)
+![image](https://user-images.githubusercontent.com/81279673/122730257-fae21980-d2b4-11eb-82a2-122ce1b20b7c.png)
+![image](https://user-images.githubusercontent.com/81279673/122730316-0d5c5300-d2b5-11eb-8696-b18773a8de5a.png)
 
 
 ## CQRS
 
-- Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이 내 서비스의 화면 구성과 잦은 조회가 가능하게 하였습니다. 본 과제에서 View 서비스는 CustomerCenter 서비스가 수행하며 회의실 상태를 보여준다.
-
-> 회의실 신청 후 customerCenter 결과
-![Cap 2021-06-07 22-08-17-580](https://user-images.githubusercontent.com/80938080/121022024-edb92b00-c7dc-11eb-872b-23b51f1b1d57.png)
+- Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이 내 서비스의 화면 구성과 잦은 조회가 가능하게 하였습니다. 
+ 본 과제에서 View 서비스는 CustomerCenter 서비스가 수행하며 주문상태를 보여준다.
+```
+# customercenter 서비스의 주문 상태 조회 
+http GET http://localhost:8084/orderStatusViews
+```
+> 주문신청 및 취소 후 주문상태 조회
+![image](https://user-images.githubusercontent.com/81279673/122730545-4c8aa400-d2b5-11eb-888b-cd2344899d3e.png)
 
 ## 폴리글랏 퍼시스턴스
 
