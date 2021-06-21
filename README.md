@@ -229,7 +229,7 @@ cd pay
 mvn spring-boot:run 
 포트 : 8082
 
-cd delivery
+cd store
 mvn spring-boot:run  
 포트 : 8083
 
