@@ -210,8 +210,8 @@
 
 # 구현
 
-분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 Bounded Context별로 마이크로서비스들을 스프링부트로 구현하였다. 
-구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다. 
+- 분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 Bounded Context별로 마이크로서비스들을 스프링부트로 구현하였다. 
+  구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다. 
 
 ```
 cd gateway
@@ -342,7 +342,8 @@ public class Order {
 }
 ```
 
-- Entity Pattern 과 Repository Pattern 을 적용하여 JPA 기반의 다양한 데이터소스 유형 (RDB or NoSQL) 에 대한 별도의 처리 없이 데이터 접근 어댑터를 자동 생성하기 위하여 Spring Data REST 의 RestRepository 를 적용하였다.
+- Entity Pattern 과 Repository Pattern 을 적용하여 JPA 기반의 다양한 데이터소스 유형 (RDB or NoSQL) 에 대한 별도의 처리 없이 
+  데이터 접근 어댑터를 자동 생성하기 위하여 Spring Data REST 의 RestRepository 를 적용하였다.
 
 > AppRepository.java 구현 내용
 ```java
@@ -388,7 +389,8 @@ http GET http://localhost:8082/pays
 
 ## 폴리글랏 퍼시스턴스
 
-- CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 구현했으며, 서로 다른 종류의 DB에도 문제없이 동작하여 다형성을 만족하는지 확인하였다.
+- CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 구현했으며, 서로 다른 종류의 DB에도 문제없이 동작하여 
+- 다형성을 만족하는지 확인하였다.
 
 > app, pay, store 서비스의 pom.xml 설정
 ```xml
@@ -409,9 +411,7 @@ http GET http://localhost:8082/pays
 
 ## 동기식 호출 과 Fallback 처리
 
-결제처리가 되지 않으면 주문신청 처리되지 않도록 하는 비기능 요구사항이 있다. (트랜잭션-동기식 호출)
-호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
-
+- 결제처리가 되지 않으면 주문신청이 되지 않는 비기능 요구사항이 있다. (트랜잭션-동기식 호출)
 - 결제(Pay)서비스를 호출하기 위에 FeignClient 를 활용하여 Proxy를 구현하였다. 
 
 > (app) external\PayService.java
@@ -465,9 +465,7 @@ public interface PayService {
     }
 ```
 
-- 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 결제 시스템이 장애가 나면 주문도 못받는다는 것을 확인:
-
-
+- 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 결제시스템이 장애가 나면 주문도 못받는다는 것을 확인
 ```
 # 결제 (pay) 서비스를 잠시 내려놓음
 
@@ -485,8 +483,6 @@ mvn spring-boot:run
 http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000   #Success
 ```
 ![image](https://user-images.githubusercontent.com/81279673/122716935-ddf21a00-d2a5-11eb-8bbd-fc4fd30f84ed.png)
-
-- 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
 
 
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
@@ -650,6 +646,11 @@ spring:
 server:
   port: 8080
 ```
+
+
+>>> cloud 화면 캡쳐 
+
+
 
 # 운영
 
