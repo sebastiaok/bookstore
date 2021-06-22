@@ -163,8 +163,7 @@
 
     - View Model 추가
     - 유비쿼터스 랭귀지 (업무현장에서 쓰는 용어)인 영어로 변경
-    
-    
+        
 
 ### 기능적 요구사항 검증
 ![image](https://user-images.githubusercontent.com/81279673/122316109-3cda2b00-cf56-11eb-85a2-f4dfd24973d0.png)
@@ -180,7 +179,6 @@
     - 주문이 취소되면 배송이 취소된다 (ok)
     - 고객이 주문상태를 중간중간 조회한다 (ok)
     - 주문상태가 바뀔 때 마다 카톡으로 알림을 보낸다 (ok)
-
 
 
 ### 비기능 요구사항 검증
@@ -200,21 +198,25 @@
 ### 완성된 모델
 ![image](https://user-images.githubusercontent.com/81279673/122315667-76f6fd00-cf55-11eb-8d7c-aef0294c98af.png)
 
-    - 수정된 모델은 모든 요구사항을 커버함.
+    - 수정된 모델은 모든 요구사항을 커버함
 
 
 ## 헥사고날 아키텍처 다이어그램 도출
-- 외부에서 들어오는 요청을 인바운드 포트를 호출해서 처리하는 인바운드 어댑터와 비즈니스 로직에서 들어온 요청을 회부 서비스를 호출해서 처리하는 아웃바운드 어댑터로 분리
 - 호출관계에서 Pub/Sub 과 Req/Resp 를 구분함
 - 서브 도메인과 바운디드 컨텍스트의 분리: 각 팀의 KPI 별로 아래와 같이 관심 구현 스토리를 나눠가짐
 - 회의(Conference)의 경우 Polyglot 적용을 위해 Hsql로 설계
 
-<img width="1200" alt="헥사고날 최종" src="https://user-images.githubusercontent.com/80210609/120962597-00ab0b80-c79b-11eb-9917-7c271b2a2434.PNG">
+![image](https://user-images.githubusercontent.com/81279673/122865863-07707b80-d362-11eb-9cf8-fe072d8518b0.png)
 
+    - Chris Richardson, MSA Patterns 참고하여 Inbound adaptor와 Outbound adaptor를 구분함
+    - 호출관계에서 PubSub 과 Req/Resp 를 구분함
+    - 서브 도메인과 바운디드 컨텍스트의 분리:  각 팀의 KPI 별로 아래와 같이 관심 구현 스토리를 나눠가짐
+    - 고객센터(CustomerCenter)의 경우 Polyglot 적용을 위해 Hsql로 설계
 
 # 구현:
 
-분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 Bounded Context별로 마이크로서비스들을 스프링부트로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다. 
+분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 Bounded Context별로 마이크로서비스들을 스프링부트로 구현하였다. 
+구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다. 
 
 ```
 cd gateway
@@ -299,7 +301,6 @@ public class Order {
         orderCancelled.publishAfterCommit();
 
     }
-
 
     public Long getId() {
         return id;
@@ -393,8 +394,8 @@ http GET http://localhost:8082/pays
 ## CQRS
 
 - Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이(Composite 서비스나 조인SQL 등 없이)도 내 서비스의 화면 구성과 잦은 조회가 가능하다. 
-- 주문상태조회(orderStatusView)로 주문(order), 결제(pay), 배송(delivery) 상태를 고객이 언제든지 조회할 수 있도록 CQRS 로 구현하였다.
-- 발행된 이벤트 기반으로 Kafka를 통해 수신된 데이터를 별도 테이블에 적재하여 성능 Issue를 사전에 예방한다.
+- 주문상태조회(orderStatusView)로 주문(order), 결제(pay), 배송(delivery) 상태를 고객이 언제든지 조회할 수 있도록 CQRS로 구현하였다.
+- 발행된 이벤트 기반으로 Kafka를 통해 수신된 데이터를 별도 테이블에 적재하여 성능 Issue를 사전에 예방할 수 있다.
 ```
 # customercenter 서비스의 주문 상태 조회 
 http GET http://localhost:8084/orderStatusViews
