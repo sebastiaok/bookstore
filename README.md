@@ -386,19 +386,6 @@ http GET http://localhost:8082/pays
 ![image](https://user-images.githubusercontent.com/81279673/122730316-0d5c5300-d2b5-11eb-8696-b18773a8de5a.png)
 
 
-## CQRS
-
-- Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이(Composite 서비스나 조인SQL 등 없이)도 내 서비스의 화면 구성과 잦은 조회가 가능하다. 
-- 주문상태조회(orderStatusView)로 주문(order), 결제(pay), 배송(delivery) 상태를 고객이 언제든지 조회할 수 있도록 CQRS로 구현하였다.
-- 발행된 이벤트 기반으로 Kafka를 통해 수신된 데이터를 별도 테이블에 적재하여 성능 Issue를 사전에 예방할 수 있다.
-```
-# customercenter 서비스의 주문 상태 조회 
-http GET http://localhost:8084/orderStatusViews
-```
-> 주문신청 및 취소 후 주문상태 조회
-![image](https://user-images.githubusercontent.com/81279673/122730545-4c8aa400-d2b5-11eb-888b-cd2344899d3e.png)
-
-
 ## 폴리글랏 퍼시스턴스
 
 - CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 구현했으며, 서로 다른 종류의 DB에도 문제없이 동작하여 다형성을 만족하는지 확인하였다.
@@ -612,6 +599,17 @@ mvn spring-boot:run
 http localhost:8080/conferences     # 모든 신청의 상태가 "할당됨"으로 확인
 ```
 
+## CQRS
+
+- Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이(Composite 서비스나 조인SQL 등 없이)도 내 서비스의 화면 구성과 잦은 조회가 가능하다. 
+- 주문상태조회(orderStatusView)로 주문(order), 결제(pay), 배송(delivery) 상태를 고객이 언제든지 조회할 수 있도록 CQRS로 구현하였다.
+- 발행된 이벤트 기반으로 Kafka를 통해 수신된 데이터를 별도 테이블에 적재하여 성능 Issue를 사전에 예방할 수 있다.
+```
+# customercenter 서비스의 주문 상태 조회 
+http GET http://localhost:8084/orderStatusViews
+```
+> 주문신청 및 취소 후 주문상태 조회
+![image](https://user-images.githubusercontent.com/81279673/122730545-4c8aa400-d2b5-11eb-888b-cd2344899d3e.png)
 
 ## Gateway 적용
 - API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였습니다.
