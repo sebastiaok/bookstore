@@ -392,8 +392,9 @@ http GET http://localhost:8082/pays
 
 ## CQRS
 
-- Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이 내 서비스의 화면 구성과 잦은 조회가 가능하게 하였습니다. 
- 본 과제에서 View 서비스는 CustomerCenter 서비스가 수행하며 주문상태를 보여준다.
+- Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이(Composite 서비스나 조인SQL 등 없이)도 내 서비스의 화면 구성과 잦은 조회가 가능하다. 
+- 주문상태조회(orderStatusView)로 주문(order), 결제(pay), 배송(delivery) 상태를 고객이 언제든지 조회할 수 있도록 CQRS 로 구현하였다.
+- 발행된 이벤트 기반으로 Kafka를 통해 수신된 데이터를 별도 테이블에 적재하여 성능 Issue를 사전에 예방한다.
 ```
 # customercenter 서비스의 주문 상태 조회 
 http GET http://localhost:8084/orderStatusViews
