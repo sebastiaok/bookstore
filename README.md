@@ -210,14 +210,10 @@
 
 # 구현
 
-- 분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 Bounded Context별로 마이크로서비스들을 스프링부트로 구현하였다. 
+- 분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 Bounded Context별로 대변되는 마이크로서비스들을 스프링부트로 구현하였다. 
   구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다. 
 
 ```
-cd gateway
-mvn spring-boot:run 
-포트 : 8088
-
 cd app 
 mvn spring-boot:run 
 포트 : 8081 
@@ -237,7 +233,7 @@ mvn spring-boot:run
 
 ## DDD 의 적용
 
-- msaez.io에서 이벤트스토밍을 통해 DDD를 작성하고 각 서비스내에 도출된 핵심 Aggregate Root 객체를 Entity 로 선언하였다.
+- 각 서비스내에 도출된 핵심 Aggregate Root 객체를 Entity 로 선언하였다. 
 
 > Order.java 구현 내용
 ```java
@@ -387,32 +383,10 @@ http GET http://localhost:8082/pays
 ![image](https://user-images.githubusercontent.com/81279673/122730316-0d5c5300-d2b5-11eb-8696-b18773a8de5a.png)
 
 
-## 폴리글랏 퍼시스턴스
-
-- CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 구현했으며, 서로 다른 종류의 DB에도 문제없이 동작하여 
-- 다형성을 만족하는지 확인하였다.
-
-> app, pay, store 서비스의 pom.xml 설정
-```xml
-    <dependency>
-        <groupId>com.h2database</groupId>
-        <artifactId>h2</artifactId>
-        <scope>runtime</scope>
-    </dependency>
-```
-> customerCenter 서비스의 pom.xml 설정
-```xml
-    <dependency>
-        <groupId>org.hsqldb</groupId>
-        <artifactId>hsqldb</artifactId>
-        <scope>runtime</scope>
-    </dependency>
-```
-
 ## 동기식 호출 과 Fallback 처리
 
-- 결제처리가 되지 않으면 주문신청이 되지 않는 비기능 요구사항이 있다. (트랜잭션-동기식 호출)
-- 결제(Pay)서비스를 호출하기 위에 FeignClient 를 활용하여 Proxy를 구현하였다. 
+- 분석단계에서의 비기능 요구사항 중 하나로 결제처리가 되지 않으면 주문신청이 되지 않도록 동기식 호출을 통한 트랜잭션으로 처리하기로 하였다.
+- 결제(Pay)서비스를 호출하기 위하여 FeignClient 를 활용하여 Service 대행 인터페이스(Proxy)를 구현하였다. 
 
 > (app) external\PayService.java
 
@@ -483,6 +457,8 @@ mvn spring-boot:run
 http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000   #Success
 ```
 ![image](https://user-images.githubusercontent.com/81279673/122716935-ddf21a00-d2a5-11eb-8bbd-fc4fd30f84ed.png)
+
+- 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
 
 
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
@@ -593,6 +569,28 @@ mvn spring-boot:run
 
 #신청 상태 확인
 http localhost:8080/conferences     # 모든 신청의 상태가 "할당됨"으로 확인
+```
+
+## 폴리글랏 퍼시스턴스
+
+- CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 구현했으며, 서로 다른 종류의 DB에도 문제없이 동작하여 
+- 다형성을 만족하는지 확인하였다.
+
+> app, pay, store 서비스의 pom.xml 설정
+```xml
+    <dependency>
+        <groupId>com.h2database</groupId>
+        <artifactId>h2</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+```
+> customerCenter 서비스의 pom.xml 설정
+```xml
+    <dependency>
+        <groupId>org.hsqldb</groupId>
+        <artifactId>hsqldb</artifactId>
+        <scope>runtime</scope>
+    </dependency>
 ```
 
 ## CQRS
