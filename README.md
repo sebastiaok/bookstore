@@ -202,10 +202,6 @@
 
 
 ## 헥사고날 아키텍처 다이어그램 도출
-- 호출관계에서 Pub/Sub 과 Req/Resp 를 구분함
-- 서브 도메인과 바운디드 컨텍스트의 분리: 각 팀의 KPI 별로 아래와 같이 관심 구현 스토리를 나눠가짐
-- 회의(Conference)의 경우 Polyglot 적용을 위해 Hsql로 설계
-
 ![image](https://user-images.githubusercontent.com/81279673/122865863-07707b80-d362-11eb-9cf8-fe072d8518b0.png)
 
     - Chris Richardson, MSA Patterns 참고하여 Inbound adaptor와 Outbound adaptor를 구분함
@@ -213,7 +209,7 @@
     - 서브 도메인과 바운디드 컨텍스트의 분리:  각 팀의 KPI 별로 아래와 같이 관심 구현 스토리를 나눠가짐
     - 고객센터(CustomerCenter)의 경우 Polyglot 적용을 위해 Hsql로 설계
 
-# 구현:
+# 구현
 
 분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 Bounded Context별로 마이크로서비스들을 스프링부트로 구현하였다. 
 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다. 
@@ -425,46 +421,6 @@ http GET http://localhost:8084/orderStatusViews
     </dependency>
 ```
 
-## Gateway 적용
-- API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였습니다.
-> gateway > application.xml 설정
-```yaml
-spring:
-  profiles: docker
-  cloud:
-    gateway:
-      routes:
-        - id: app
-          uri: http://app:8080
-          predicates:
-            - Path=/orders/** 
-        - id: pay
-          uri: http://pay:8080
-          predicates:
-            - Path=/pays/** 
-        - id: store
-          uri: http://store:8080
-          predicates:
-            - Path=/deliveries/** 
-        - id: customerCenter
-          uri: http://customerCenter:8080
-          predicates:
-            - Path= /oderStatusViews/**
-      globalcors:
-        corsConfigurations:
-          '[/**]':
-            allowedOrigins:
-              - "*"
-            allowedMethods:
-              - "*"
-            allowedHeaders:
-              - "*"
-            allowCredentials: true
-
-server:
-  port: 8080
-```
-
 ## 동기식 호출 과 Fallback 처리
 
 결제처리가 되지 않으면 주문신청 처리되지 않도록 하는 비기능 요구사항이 있다. (트랜잭션-동기식 호출)
@@ -657,6 +613,46 @@ mvn spring-boot:run
 http localhost:8080/conferences     # 모든 신청의 상태가 "할당됨"으로 확인
 ```
 
+
+## Gateway 적용
+- API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였습니다.
+> gateway > application.xml 설정
+```yaml
+spring:
+  profiles: docker
+  cloud:
+    gateway:
+      routes:
+        - id: app
+          uri: http://app:8080
+          predicates:
+            - Path=/orders/** 
+        - id: pay
+          uri: http://pay:8080
+          predicates:
+            - Path=/pays/** 
+        - id: store
+          uri: http://store:8080
+          predicates:
+            - Path=/deliveries/** 
+        - id: customerCenter
+          uri: http://customerCenter:8080
+          predicates:
+            - Path= /oderStatusViews/**
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "*"
+            allowedMethods:
+              - "*"
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+
+server:
+  port: 8080
+```
 
 # 운영
 
