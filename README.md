@@ -386,7 +386,7 @@ http GET http://localhost:8082/pays
 ## 동기식 호출 과 Fallback 처리
 
 분석단계에서의 비기능 요구사항 중 하나로 결제처리가 되지 않으면 주문신청이 되지 않도록 동기식 호출을 통한 트랜잭션으로 처리하기로 하였다. 
-호출 프로토콜은 이미 앞서 Rest Repositorydp 의해 노출되어 있는 REST 서비스를 FeignClient를 이용하였다. 
+호출 프로토콜은 이미 앞서 Rest Repositorydp 의해 노출되어 있는 REST 서비스를 FeignClient를 이용하여 호출하였다. 
 
 - 결제(Pay)서비스를 호출하기 위하여 FeignClient를 활용하여 Service 대행 인터페이스(Proxy)를 구현하였다. 
 > (app) external\PayService.java
