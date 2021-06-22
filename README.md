@@ -401,11 +401,12 @@ http GET http://localhost:8084/orderStatusViews
 > 주문신청 및 취소 후 주문상태 조회
 ![image](https://user-images.githubusercontent.com/81279673/122730545-4c8aa400-d2b5-11eb-888b-cd2344899d3e.png)
 
+
 ## 폴리글랏 퍼시스턴스
 
-- 회의(conference)의 경우 H2 DB인 결제(pay)/회의실(room) 서비스와 달리 Hsql로 구현하여 MSA의 서비스간 서로 다른 종류의 DB에도 문제없이 동작하여 다형성을 만족하는지 확인하였다.
+- CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 구현했으며, 서로 다른 종류의 DB에도 문제없이 동작하여 다형성을 만족하는지 확인하였다.
 
-> pay, room 서비스의 pom.xml 설정
+> app, pay, store 서비스의 pom.xml 설정
 ```xml
     <dependency>
         <groupId>com.h2database</groupId>
@@ -413,7 +414,7 @@ http GET http://localhost:8084/orderStatusViews
         <scope>runtime</scope>
     </dependency>
 ```
-> conference 서비스의 pom.xml 설정
+> customerCenter 서비스의 pom.xml 설정
 ```xml
     <dependency>
         <groupId>org.hsqldb</groupId>
@@ -421,6 +422,7 @@ http GET http://localhost:8084/orderStatusViews
         <scope>runtime</scope>
     </dependency>
 ```
+
 ## Gateway 적용
 - API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였습니다.
 > gateway > application.xml 설정
@@ -430,22 +432,22 @@ spring:
   cloud:
     gateway:
       routes:
-        - id: conference
-          uri: http://conference:8080
+        - id: app
+          uri: http://app:8080
           predicates:
-            - Path=/conferences/** 
+            - Path=/orders/** 
         - id: pay
           uri: http://pay:8080
           predicates:
             - Path=/pays/** 
-        - id: room
-          uri: http://room:8080
+        - id: store
+          uri: http://store:8080
           predicates:
-            - Path=/rooms/** 
+            - Path=/deliveries/** 
         - id: customerCenter
           uri: http://customerCenter:8080
           predicates:
-            - Path= /roomStates/**
+            - Path= /oderStatusViews/**
       globalcors:
         corsConfigurations:
           '[/**]':
