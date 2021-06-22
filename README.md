@@ -390,9 +390,7 @@ http GET http://localhost:8082/pays
 
 - 결제(Pay)서비스를 호출하기 위하여 FeignClient를 활용하여 Service 대행 인터페이스(Proxy)를 구현하였다. 
 > (app) external\PayService.java
-
 ```java
-
 package bookstore.external;
 
 import org.springframework.cloud.openfeign.FeignClient;
@@ -400,7 +398,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-@FeignClient(name="pay", url="http://pay:8082")
+@FeignClient(name="pay", url="${api.pay.url}")
 public interface PayService {
 
     @RequestMapping(method= RequestMethod.POST, path="/pays")
@@ -408,9 +406,7 @@ public interface PayService {
 
 }
 ```
-
 - 주문을 받은 직후(@PostPersist) 결제를 요청하도록 처리
-
 > (app) Order.java (Entity)
 ```java
     public void onPostPersist(){
@@ -435,7 +431,6 @@ public interface PayService {
         pay.setStatus("Paid");
 
         AppApplication.applicationContext.getBean(bookstore.external.PayService.class).pay(pay);
-
     }
 ```
 
@@ -463,13 +458,18 @@ http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000   #Suc
 
 # 이벤트 드리븐 아키텍쳐의 구현
 
-## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
+## 비동기식 호출
 
-결제가 완료된 후 서점관리(store)로 이를 알려주는 행위는 동기식이 아닌 비동기식으로 처리하여 서점관리 서비스의 처리를 위하여 결제가 블로킹 되지 않도록 처리하였다.
+- 결제가 완료된 후 서점관리(store)로 이를 알려주는 행위는 동기식이 아닌 비동기식으로 처리하며, 서점관리 서비스의 처리를 위하여 결제가 블로킹 되지 않도록 처리하였다.
  
 - 아래는 결제됨 이벤트를 카프카로 송출(Publish)하는 구현내용이다.
 > (pay) Pay.java (Entity)
 ```java
+package bookstore;
+
+import javax.persistence.*;
+import org.springframework.beans.BeanUtils;
+
 @Entity
 @Table(name="Pay_table")
 public class Pay {
@@ -488,13 +488,19 @@ public class Pay {
         Paid paid = new Paid();
         BeanUtils.copyProperties(this, paid);
         paid.publishAfterCommit();
-
     }
     
 ```
-- 서점 서비스에서는 결제승인 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다:
-
+- 서점관리 서비스에서는 결제완료 이벤트를 수신하여 자신의 정책을 처리하도록 PolicyHandler를 구현하였다.
 ```java
+package bookstore;
+
+import bookstore.config.kafka.KafkaProcessor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.stream.annotation.StreamListener;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.stereotype.Service;
+
 @Service
 public class PolicyHandler{
     @Autowired DeliveryRepository deliveryRepository;
@@ -514,25 +520,41 @@ public class PolicyHandler{
 
 ```
 
-
-회의실 관리 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 회의실 관리 시스템이 유지보수로 인해 잠시 내려간 상태라도 신청을 받는데 문제가 없다:
+## 시간적 디커플링 / 장애격리
+- 서점관리(store) 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 서점관리 시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없도록 구현하였다.
 ```
-# 회의실 관리 시스템 (Room) 를 잠시 내려놓음 (ctrl+c)
+# 서점관리(store) 시스템을 잠시 내려놓음
 
-#신청 처리
-http post http://localhost:8081/conferences status="" payId=0 roomNumber=1   #Success
-http post http://localhost:8081/conferences status="" payId=0 roomNumber=2   #Success
+# 주문 처리
+http POST http://localhost:8081/orders bookName=SUMMER qty=1 price=17000   #Success
+```
+![image](https://user-images.githubusercontent.com/81279673/122894680-5fb77580-d382-11eb-9206-053220680136.png)
 
-#신청 상태 확인
-http localhost:8080/conferences     # 신청 상태 안바뀜 확인
+- 결제서비스가 정상적으로 조회되었는지 확인
+```
+http GET http://localhost:8082/pays   #Success
+```
+![image](https://user-images.githubusercontent.com/81279673/122894888-8fff1400-d382-11eb-8396-4085890f5e71.png)
 
-#회의실 관리 서비스 기동
-cd room
+- 신청 상태 변경없음 확인
+```
+http GET http://localhost:8081/orders
+```
+![image](https://user-images.githubusercontent.com/81279673/122897865-58de3200-d385-11eb-9c7d-840f13dc6a69.png)
+
+- 서점관리 서비스 재기동
+```
+cd store
 mvn spring-boot:run
-
-#신청 상태 확인
-http localhost:8080/conferences     # 모든 신청의 상태가 "할당됨"으로 확인
 ```
+- 기동 후 주문상태 확인
+```
+http GET http://localhost:8083/deliveries    
+```
+![image](https://user-images.githubusercontent.com/81279673/122897553-13ba0000-d385-11eb-823c-b0854faedc5b.png)
+
+
+## Correlation
 
 ## 폴리글랏 퍼시스턴스
 
