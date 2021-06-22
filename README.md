@@ -441,7 +441,6 @@ public interface PayService {
 # 주문 처리
 http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000    #Fail
 ```
-> 결제 요청 오류 발생
 ![image](https://user-images.githubusercontent.com/81279673/122716723-979cbb00-d2a5-11eb-8d40-3690618fd539.png)
 ```
 # 결제 (pay) 서비스 재기동
