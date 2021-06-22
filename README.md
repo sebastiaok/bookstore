@@ -385,9 +385,10 @@ http GET http://localhost:8082/pays
 
 ## 동기식 호출 과 Fallback 처리
 
-- 분석단계에서의 비기능 요구사항 중 하나로 결제처리가 되지 않으면 주문신청이 되지 않도록 동기식 호출을 통한 트랜잭션으로 처리하기로 하였다.
-- 결제(Pay)서비스를 호출하기 위하여 FeignClient 를 활용하여 Service 대행 인터페이스(Proxy)를 구현하였다. 
+분석단계에서의 비기능 요구사항 중 하나로 결제처리가 되지 않으면 주문신청이 되지 않도록 동기식 호출을 통한 트랜잭션으로 처리하기로 하였다. 
+호출 프로토콜은 이미 앞서 Rest Repositorydp 의해 노출되어 있는 REST 서비스를 FeignClient를 이용하였다. 
 
+- 결제(Pay)서비스를 호출하기 위하여 FeignClient를 활용하여 Service 대행 인터페이스(Proxy)를 구현하였다. 
 > (app) external\PayService.java
 
 ```java
@@ -411,7 +412,6 @@ public interface PayService {
 - 주문을 받은 직후(@PostPersist) 결제를 요청하도록 처리
 
 > (app) Order.java (Entity)
-
 ```java
     public void onPostPersist(){
 
@@ -461,93 +461,56 @@ http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000   #Suc
 - 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
 
 
+# 이벤트 드리븐 아키텍쳐의 구현
+
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
 
-
-결제가 이루어진 후에 회의실 관리(Room)로 이를 알려주는 행위는 동기식이 아니라 비동기식으로 처리하여 회의실 관리 서비스의 처리를 위하여 결제가 블로킹 되지 않아도록 처리한다.
+결제가 완료된 후 서점관리(store)로 이를 알려주는 행위는 동기식이 아닌 비동기식으로 처리하여 서점관리 서비스의 처리를 위하여 결제가 블로킹 되지 않도록 처리하였다.
  
-- 이를 위하여 결제이력에 기록을 남긴 후에 곧바로 결제승인이 되었다는 도메인 이벤트를 카프카로 송출한다(Publish)
- 
+- 아래는 결제됨 이벤트를 카프카로 송출(Publish)하는 구현내용이다.
+> (pay) Pay.java (Entity)
 ```java
-package hifive;
-
-import javax.persistence.*;
-import org.springframework.beans.BeanUtils;
-import java.util.List;
-import java.util.Date;
-
 @Entity
 @Table(name="Pay_table")
 public class Pay {
 
     @Id
     @GeneratedValue(strategy=GenerationType.AUTO)
-    private Long payId;
+    private Long id;
+    private Long orderId;
+    private String bookName;
+    private Integer qty;
+    private Integer price;
     private String status;
-    private Long conferenceId;
-    private Long roomNumber;
 
     @PostPersist
     public void onPostPersist(){
-
-        if (this.getStatus() != "PAID") return;
-
-        System.out.println("********************* Pay PostPersist Start. PayStatus=" + this.getStatus());
-
         Paid paid = new Paid();
-        paid.setPayId(this.payId);
-        paid.setPayStatus(this.status);
-        paid.setConferenceId(this.conferenceId);
-        paid.setRoomNumber(this.roomNumber);
-        //BeanUtils.copyProperties(this, paid);
+        BeanUtils.copyProperties(this, paid);
         paid.publishAfterCommit();
 
-        try {
-            Thread.currentThread().sleep((long) (400 + Math.random() * 220));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        System.out.println(toString());
-        System.out.println("********************* Pay PostPersist End.");
     }
-
-}
+    
 ```
-- 상점 서비스에서는 결제승인 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다:
+- 서점 서비스에서는 결제승인 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다:
 
 ```java
-package hifive;
-
 @Service
-public class PolicyHandler {
-    @Autowired
-    RoomRepository roomRepository;
+public class PolicyHandler{
+    @Autowired DeliveryRepository deliveryRepository;
 
     @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverPaid_RoomAssign(@Payload Paid paid) {
+    public void wheneverPaid_Delivery(@Payload Paid paid){
+        
+        if(!paid.validate()) return;
 
-        if (!paid.validate()) {
-            System.out.println("##### listener RoomAssign Fail");
-            return;
-        } else {
-            System.out.println("\n\n##### listener RoomAssign : " + paid.toJson() + "\n\n");
-
-            //예약 신청한 방 번호 조회, 퇴실 개념이 없기 때문에 상태 검사 하지 않음
-            Optional<Room> optionalRoom = roomRepository.findById(paid.getRoomNumber());
-
-            Room room = optionalRoom.get();
-            room.setRoomStatus("FULL");
-            room.setUsedCount(room.getUsedCount() + 1);
-            room.setConferenceId(paid.getConferenceId());
-            room.setPayId(paid.getPayId());
-
-            System.out.println("##### 방배정 확인");
-            System.out.println("[ RoomStatus : " + room.getRoomStatus() + ", RoomNumber : " + room.getRoomNumber() + ", UsedCount : " + room.getUsedCount() + ", ConferenceId : " + room.getConferenceId() + "," + room.getPayId() + "]");
-            roomRepository.save(room);
-        }
+        Delivery delivery= new Delivery();
+        delivery.setOrderId(paid.getOrderId());
+        delivery.setPayId(paid.getId());
+        delivery.setStatus("DeliveryStarted");        
+        deliveryRepository.save(delivery);      
+            
     }
-}
 
 ```
 
