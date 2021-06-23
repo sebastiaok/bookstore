@@ -619,9 +619,7 @@ http GET http://localhost:8084/orderStatusViews
         <artifactId>hsqldb</artifactId>
         <scope>runtime</scope>
     </dependency>``
-
-
-
+```
 
 ## Gateway 적용
 - API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였습니다.
