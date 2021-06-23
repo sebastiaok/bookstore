@@ -520,26 +520,26 @@ public class PolicyHandler{
 ```
 
 ## 시간적 디커플링 / 장애격리
-서점관리(store) 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 서점관리 시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없도록 구현하였다.
+서점관리(store) 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되므로 서점관리 시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없도록 구현하였다.
 ```
 # 서점관리(store) 시스템을 잠시 내려놓음
 
 # 주문 처리
 http POST http://localhost:8081/orders bookName=SUMMER qty=1 price=17000   #Success
 ```
-![image](https://user-images.githubusercontent.com/81279673/122894680-5fb77580-d382-11eb-9206-053220680136.png)
+![image](https://user-images.githubusercontent.com/81279673/123035695-b37b9a80-d426-11eb-9c2a-ffeac70fd68b.png)
 
 - 결제서비스가 정상적으로 조회되었는지 확인
 ```
 http GET http://localhost:8082/pays   #Success
 ```
-![image](https://user-images.githubusercontent.com/81279673/122894888-8fff1400-d382-11eb-8396-4085890f5e71.png)
+![image](https://user-images.githubusercontent.com/81279673/123035626-947d0880-d426-11eb-80a4-e2794250c1d3.png)
 
 - 신청 상태 변경없음 확인
 ```
-http GET http://localhost:8081/orders
+http GET http://localhost:8084/orderStatusView
 ```
-![image](https://user-images.githubusercontent.com/81279673/122897865-58de3200-d385-11eb-9c7d-840f13dc6a69.png)
+![image](https://user-images.githubusercontent.com/81279673/123035752-d443f000-d426-11eb-9b66-04d02003ec36.png)
 
 - 서점관리 서비스 재기동
 ```
@@ -548,12 +548,59 @@ mvn spring-boot:run
 ```
 - 기동 후 주문상태 확인
 ```
+http GET http://localhost:8081/orders   
+```
+![image](https://user-images.githubusercontent.com/81279673/123035841-09e8d900-d427-11eb-97fc-bfb21c57f0a2.png)
+```
 http GET http://localhost:8083/deliveries    
 ```
-![image](https://user-images.githubusercontent.com/81279673/122897553-13ba0000-d385-11eb-823c-b0854faedc5b.png)
+![image](https://user-images.githubusercontent.com/81279673/123035891-1f5e0300-d427-11eb-8270-d31abd082263.png)
 
 
 ## Correlation
+MSAez 모델링 도구를 활용하여 각 서비스의 이벤트와 폴리시간의 연결을 pub/sub 점선으로 표현하였으며, 이를 코드로 자동생성하여 Correlation-key 연결을 구현하였다.
+서점관리(store)시스템에서 상태가 배송시작으로 변경되면 주문(app)시스템 원천데이터의 상태(status) 정보가 update된다.  
+
+> (app) PolicyHandler.java
+```
+    @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverDeliveryStarted_StatusUpdate(@Payload DeliveryStarted deliveryStarted){
+
+        if(!deliveryStarted.validate()) return;
+
+        System.out.println("\n\n##### listener StatusUpdate : " + deliveryStarted.toJson() + "\n\n");       
+
+        // Correlation id = 'orderId' 
+        orderRepository.findById(Long.valueOf(deliveryStarted.getOrderId())).ifPresent(Match -> {
+
+            System.out.println("##### wheneverDeliveryStarted_StatusUpdate.findById : exist");
+
+            System.out.println("deliveryStarted 주문 번호 : "+ deliveryStarted.getOrderId());
+
+            Order order = new Order();
+            
+            order.setId(deliveryStarted.getOrderId());
+            order.setStatus(deliveryStarted.getStatus());
+            System.out.println("\n\n##### wheneverDeliveryStarted_StatusUpdate order ID: " + order.getId() + "\n\n");
+            
+            orderRepository.save(order);
+        });
+           
+    }
+```
+
+## CQRS
+
+- Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이(Composite 서비스나 조인SQL 등 없이)도 내 서비스의 화면 구성과 잦은 조회가 가능하다. 
+- 주문상태조회(orderStatusView)로 주문(order), 결제(pay), 배송(delivery) 상태를 고객이 언제든지 조회할 수 있도록 CQRS로 구현하였다.
+- 발행된 이벤트 기반으로 Kafka를 통해 수신된 데이터를 별도 테이블에 적재하여 성능 Issue를 사전에 예방할 수 있다.
+```
+# customercenter 서비스의 주문 상태 조회 
+http GET http://localhost:8084/orderStatusViews
+```
+> 주문신청 및 취소 후 주문상태 조회
+![image](https://user-images.githubusercontent.com/81279673/122730545-4c8aa400-d2b5-11eb-888b-cd2344899d3e.png)
+
 
 ## 폴리글랏 퍼시스턴스
 
@@ -574,20 +621,10 @@ http GET http://localhost:8083/deliveries
         <groupId>org.hsqldb</groupId>
         <artifactId>hsqldb</artifactId>
         <scope>runtime</scope>
-    </dependency>
-```
+    </dependency>``
 
-## CQRS
 
-- Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이(Composite 서비스나 조인SQL 등 없이)도 내 서비스의 화면 구성과 잦은 조회가 가능하다. 
-- 주문상태조회(orderStatusView)로 주문(order), 결제(pay), 배송(delivery) 상태를 고객이 언제든지 조회할 수 있도록 CQRS로 구현하였다.
-- 발행된 이벤트 기반으로 Kafka를 통해 수신된 데이터를 별도 테이블에 적재하여 성능 Issue를 사전에 예방할 수 있다.
-```
-# customercenter 서비스의 주문 상태 조회 
-http GET http://localhost:8084/orderStatusViews
-```
-> 주문신청 및 취소 후 주문상태 조회
-![image](https://user-images.githubusercontent.com/81279673/122730545-4c8aa400-d2b5-11eb-888b-cd2344899d3e.png)
+
 
 ## Gateway 적용
 - API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였습니다.
@@ -628,184 +665,237 @@ spring:
 server:
   port: 8080
 ```
+- Gateway 서비스 실행 상태에서 8088과 8081로 각각 서비스 실행하였을 때 동일하게 match 서비스 실행되었다.
+```
+http localhost:8088/matches id=50 price=50000 status=matchRequest
+```
+![8088포트](https://user-images.githubusercontent.com/45473909/105039570-0f22b000-5aa4-11eb-9090-45662dcd79d0.PNG)
+
+```
+http localhost:8081/matches id=51 price=50000 status=matchRequest
+```
+![8081포트](https://user-images.githubusercontent.com/45473909/105039551-0a5dfc00-5aa4-11eb-86c0-c3fc63d5b0f6.PNG)
 
 
->>> cloud 화면 캡쳐 
-
-
-
-# 운영
 
 ## CI/CD 설정
+각 구현체들은 각자의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 Azure를 사용하였으며, pipeline build script 는 각 프로젝트 폴더 이하에 deployment.yml, service.yml 에 포함되었다
 
-각 구현체들은 각자의 source repository 에 구성되었고, 도커라이징, deploy 및
-서비스 생성을 진행하였다.
+![CI파이프라인](https://user-images.githubusercontent.com/75401933/105256578-58205480-5bc9-11eb-89e6-490906ae1372.png)
 
-- git에서 소스 가져오기
-```
-git clone https://github.com/jypark002/hifive.git
-```
-- Build 하기
-```
-cd hifive
-cd conference
-mvn package
-```
-- 도커라이징 : Azure 레지스트리에 도커 이미지 푸시하기
-```
-az acr build --registry skccuser05 --image skccuser05.azurecr.io/conference:latest .
-```
-- 컨테이너라이징 : 디플로이 생성 확인
-```
-kubectl create deploy conference --image=skccuser05.azurecr.io/conference:latest
-```
-- 컨테이너라이징 : 서비스 생성
-```
-kubectl expose deploy conference --port=8080
-```
-> customerCenter, pay, room, gateway 서비스도 동일한 배포 작업 반복
+![CD릴리즈](https://user-images.githubusercontent.com/75401933/105256635-7a19d700-5bc9-11eb-87ab-0c3b6267a15c.png)
+
+![CD릴리즈스테이지](https://user-images.githubusercontent.com/75401933/105256710-a33a6780-5bc9-11eb-9bae-33a6965c17b1.png)
+
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 
-- Spring FeignClient + Hystrix을 사용하여 서킷 브레이킹 구현
-- Hystrix 설정 : 결제 요청 쓰레드의 처리 시간이 410ms가 넘어서기 시작한 후 어느정도 지속되면 서킷 브레이커가 닫히도록 설정
-- 결제를 요청하는 Conference 서비스에서 Hystrix 설정
 
-> Conference 서비스의 application.yml 파일
-```yaml
-feign:
-  hystrix:
-    enabled: true
-hystrix:
-  command:
-    default:
-      execution.isolation.thread.timeoutInMilliseconds: 610
+서킷 브레이킹 프레임워크의 선택: Spring FeignClient + Hystrix 옵션을 사용하여 구현함
+시나리오는 매칭요청(match)-->결제(payment) 시의 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 결제 요청이 과도할 경우 CB 를 통하여 장애격리.
+
+
+1. Hystrix 를 설정:  요청처리 쓰레드에서 처리시간이 610 밀리가 넘어서기 시작하여 어느정도 유지되면 CB 회로가 닫히도록 (요청을 빠르게 실패처리, 차단) 설정
+- application.yml
+
+![Hystrix설정](https://user-images.githubusercontent.com/75401933/105256018-35417080-5bc8-11eb-9c55-dec189b1bed5.png)
+
+
+2. 피호출 서비스(결제:payment) 의 임의 부하 처리 - 400 밀리에서 증감 220 밀리 정도 왔다갔다 하게
+
+- (payment) Payment.java (Entity)
+
+![image](https://user-images.githubusercontent.com/75401933/105285536-f3302300-5bf7-11eb-8227-9f43f68b6287.png)
+
+3. istio설정
+
+- virtualservice.yaml 생성
+
+![image](https://user-images.githubusercontent.com/75401933/105285074-fe368380-5bf6-11eb-92f9-df8af52f1158.png)
+
+3. 부하테스터 siege 툴을 통한 서킷 브레이커 동작 확인:
+ - 동시사용자 100명
+ - 60초 동안 실시
+ 
+```
+ - siege -c100 -t60S -r5 -v --content-type "application/json" 'http://match:8080/matches POST {"id": 600, "price":1000, "status": "matchRequest"}' 
+```
+![siege](https://user-images.githubusercontent.com/75401933/105274031-bbb57c80-5bdf-11eb-8e24-b349b79a5f80.png)
+
+서킷브레이크가 발생하지 않아 아래와 같이 여러 조건으로 부하테스트를 진행하였으나, 500 에러를 발견할 수 없었음
+
+```
+ - siege -c255 -t1M -r5 -v --content-type "application/json" 'http://match:8080/matches POST {"id": 600, "price":1000, "status": "matchRequest"}' 
+ 
+ - siege -c255 -t2M -r5 -v --content-type "application/json" 'http://match:8080/matches POST {"id": 600, "price":1000, "status": "matchRequest"}' 
 ```
 
-- 결제 서비스(pay)에서 임의 부하 처리 - 400 밀리에서 증감 220 밀리 정도 왔다갔다 하게
-> Pay 서비스의 Pay.java 파일
-```java
+
+## 오토스케일 아웃
+
+앞서 CB 는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다.
+match구현체에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 10프로를 넘어서면 replica 를 10개까지 늘려준다:
+
+- autosclae 적용
+
+```
+kubectl autoscale deployment match --cpu-percent=10 --min=1 --max=10
+```
+![AutoScaling1](https://user-images.githubusercontent.com/75401933/105279069-279ce280-5bea-11eb-9efd-a1b310cfd75b.png)
+
+```
+kubectl exec -it pod/siege -- /bin/bash
+siege -c100 -t30S -v --content-type "application/json" 'http://52.231.52.214:8080/matches POST  {"id": 1000, "price":1000, "status": "matchRequest", "student":"testStudent"}'
+```
+부하에 따라 visit pod의 cpu 사용률이 증가했고, Pod Replica 수가 증가하는 것을 확인할 수 있었음
+
+![AutoScaling](https://user-images.githubusercontent.com/75401933/105278740-75651b00-5be9-11eb-9f06-11253eea34d6.png)
+
+## Persistence Volume
+
+visit 컨테이너를 마이크로서비스로 배포하면서 영속성 있는 저장장치(Persistent Volume)를 적용함
+
+• PVC 설정 확인
+
+![pvcDescribe](https://user-images.githubusercontent.com/75401933/105258282-be5aa680-5bcc-11eb-86c7-531f48900c57.png)
+
+
+• PVC Volume설정 확인
+visit 구현체에서 해당 pvc를 volumeMount 하여 사용 
+
+```
+kubectl get pod visit -o yaml
+```
+![PVC볼륨설정확인](https://user-images.githubusercontent.com/75401933/105261676-34faa280-5bd3-11eb-8a7c-aa27b73b95a7.png)
+
+- visit pod에 접속하여 mount 용량 확인
+
+![image](https://user-images.githubusercontent.com/75401933/105268535-c3702380-5bd5-11eb-933e-a82b92e90f0b.png)
+
+
+## Self_healing (liveness probe)
+mypage구현체의 deployment.yaml 소스 서비스포트를 8080이 아닌 고의로 8081로 변경하여 재배포한 후 pod 상태 확인
+
+- 정상/비정상 pod 정보 조회
+
+![image](https://user-images.githubusercontent.com/75401933/105279506-08528500-5beb-11eb-89a0-346481020201.png)
+
+
+## 무정지 재배포
+
+먼저 무정지 재배포가 100% 되는 것인지 확인하기 위해서 Autoscaler 이나 CB 설정을 제거함
+seige 로 배포작업 직전에 워크로드를 모니터링 함.
+
+- match의 deployment.yml의 readiness설정 삭제 후 CI/CD를 통한 재배포
+
+![image](https://user-images.githubusercontent.com/75401933/105279725-8b73db00-5beb-11eb-91d8-5eb0f450a1f8.png)
+
+- 부하 측정을 siege로 진입하여 Availability 확인
+
+```
+siege -c10 -t30S -r10 --content-type "application/json" 'http://match:8080/matches POST  {"id": 1000, "price":1000, "status": "matchRequest", "student":"testStudent"}'
+
+```
+1. CI/CD를 통해 새로운 배포 시작
+1. seige 의 화면으로 넘어가서 Availability 가 100% 미만으로 떨어졌는지 확인
+
+![availablity변화](https://user-images.githubusercontent.com/75401933/105281331-3f2a9a00-5bef-11eb-8961-d89c88147eb3.png)
+
+1. 배포기간중 Availability 가 평소 100%에서 70% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행한 것이기 때문
+1. 이를 막기위해 Readiness Probe 를 재설정 후 CI/CD를 통해 새로운 배포 시작
+1. 동일한 시나리오로 재배포 한 후 Availability 확인
+
+![image](https://user-images.githubusercontent.com/75401933/105281668-02ab6e00-5bf0-11eb-9dff-c277a96eacca.png)
+
+배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
+
+
+
+
+
+
+
+
+
+# 신규MSA추가_학생포인트관리시스템
+
+
+
+## 신규서비스 분석설계
+선생님 방문을 요청하는 학생고객 관리를 위하여 학생 포인트 관리 기능을 추가하기로 하였다. 
+추가된 기능적 요구사항은 다음과 같다.
+1. 각 시스템에 학생정보 attribute 추가 관리한다.
+1. 방문이 assign 되었을 때 학생의 포인트가 100만큼 증가한다. (신규학생의 경우 학생정보를 신규 생성한 후 100포인트를 생성한다.)
+1. 방문이 취소되었을 경우 학생의 포인트를 100 차감한다.
+
+
+
+### 변경된 이벤트스토밍
+![변경된이벤트스토밍](https://user-images.githubusercontent.com/75401933/105131136-b26ad800-5b2b-11eb-9e2a-1918de08addc.png)
+
+
+
+### 헥사고날아키텍쳐의 변화
+![변경된헥사고날아키텍쳐](https://user-images.githubusercontent.com/75401933/105131271-f4941980-5b2b-11eb-847c-37adbf21ad81.png)
+신규추가된 학생 포인트 관리시스템은 정책구독만 하며 event를 발행하지는 않는다.
+
+
+
+## 신규서비스 구현
+기존 마이크로서비스에 수정을 발생시키지 않도록 req/res 방식이 아닌 event를 subscribe 하는 방식으로 구현하였다. 기존 운영중인 마이크로 서비스에는 student attribute를 신규추가한 것 외에 변경사항은 없으며, 기존 MSA의 아키텍처나 DB구조에 영향을 주지 않는다. 
+
+### 구현 테스트
+- 학생 jane에게 방문assign 시 student시스템에서 jane의 point가 100 증가
+
+![image](https://user-images.githubusercontent.com/75401933/105269308-01217c00-5bd7-11eb-9eb3-611935cccc47.png)
+
+- jane이 방문 취소 시 point 100 차감
+
+![image](https://user-images.githubusercontent.com/75401933/105269597-93298480-5bd7-11eb-815f-4d4173b96242.png)
+
+
+## 운영과 Retirement
+req/res 방식으로 구현하지 않았기 때문에 서비스가 불필요해져도 Deployment에서 제거되면 기존 MSA에 어떤 영향도 주지 않는다.
+(결제(payment) MSA의 경우 match-payment간 req/res 방식으로 구현되어 있기 때문에 API 변화 또는 Retirement 시 매치(match) MSA의 변경을 초래한다)
+
+```
+# Payment API 변화 시 Match.java의 수정
+
     @PostPersist
     public void onPostPersist(){
-        if (this.getStatus() != "PAID") return;
 
-        Paid paid = new Paid();
-        paid.setPayId(this.payId);
-        paid.setPayStatus(this.status);
-        paid.setConferenceId(this.conferenceId);
-        paid.setRoomNumber(this.roomNumber);
-        paid.publishAfterCommit();
+        Payment payment = new Payment();
+        //변수 setting
+        payment.setMatchId(Long.valueOf(this.getId()));
+        payment.setPrice(Integer.valueOf(this.getPrice()));
+        payment.setStudent(String.valueOf(this.getStudent()));
+        payment.setPaymentAction("Approved");
 
-        try {
-            Thread.currentThread().sleep((long) (400 + Math.random() * 220));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        MatchApplication.applicationContext.getBean(PaymentService.class)
+                .paymentRequest(payment);
+                
+                --> 
+
+        MatchApplication.applicationContext.getBean(PaymentService.class)
+                .paymentRequest2(payment);
     }
 ```
 
-- 부하테스터 siege 툴을 통한 서킷브레이커 동작 확인:
-    - 동시사용자 100명
-    - 60초 동안 실시
-
 ```
-siege -c100 -t60S -r10 -v --content-type "application/json" 'http://52.231.34.176:8080/conferences POST {"status":"", "payId":0, "roomNumber":1}'
+# Payment Retirement 시 Match.java의 수정
+
+    @PostPersist
+    public void onPostPersist(){
+        /**
+        Payment payment = new Payment();
+        //변수 setting
+        payment.setMatchId(Long.valueOf(this.getId()));
+        payment.setPrice(Integer.valueOf(this.getPrice()));
+        payment.setStudent(String.valueOf(this.getStudent()));
+        payment.setPaymentAction("Approved");
+
+        MatchApplication.applicationContext.getBean(PaymentService.class)
+                .paymentRequest(payment);
+        **/
+    }
 ```
-- 부하가 발생하고 서킷브레이커가 발동하여 요청 실패하였고, 밀린 부하가 다시 처리되면서 회의실 신청(Apply)를 받기 시작
-![Cap 2021-06-08 10-37-57-954](https://user-images.githubusercontent.com/80938080/121108974-a450f600-c845-11eb-94ed-621b894f0da1.png)
-
-
-- 운영 중인 시스템은 죽지 않고 지속적으로 서킷브레이커에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 47.10% 가 성공하였고, 53%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 Retry 설정과 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
-![Cap 2021-06-08 10-39-01-129](https://user-images.githubusercontent.com/80938080/121109032-bdf23d80-c845-11eb-906b-9416924c6c1c.png)
-
-
-## 오토스케일아웃 (HPA)
-앞서 서킷브레이커는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다. 
-
-- conference의 deployment.yaml 파일 설정
-
-<img width="400" alt="야믈" src="https://user-images.githubusercontent.com/80210609/121058380-3b449080-c7fb-11eb-92ab-20852519d9d9.PNG">
-
-- 신청서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 15프로를 넘어서면 replica 를 10개까지 늘려준다:
-
-```
-kubectl autoscale deploy confenrence --min=1 --max=10 --cpu-percent=15
-```
-
-- hpa 설정 확인
-
-<img width="600" alt="스케일-hpa" src="https://user-images.githubusercontent.com/80210609/121057419-37fcd500-c7fa-11eb-81ff-8d5062a219b4.PNG">
-
-
-- CB 에서 했던 방식대로 워크로드를 1분 동안 걸어준다.
-```
-siege -c100 -t60S -r10 -v --content-type "application/json" 'http://conference:8080/conferences POST {"roomNumber": "123"}'
-```
-- 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
-```
-kubectl get deploy conference -w
-```
-
-- 어느정도 시간이 흐른 후 스케일 아웃이 벌어지는 것을 확인할 수 있다:
-<img width="700" alt="스케일최종" src="https://user-images.githubusercontent.com/80210609/121056827-937a9300-c7f9-11eb-9ebc-ca86c271d3c3.PNG">
-
-- siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
-<img width="600" alt="상태" src="https://user-images.githubusercontent.com/80210609/121057028-cde43000-c7f9-11eb-88d2-c022dddca49f.PNG">
-  
-
-## ConfigMap
-- 환경정보로 변경 시 ConfigMap으로 설정함
-
-- 리터럴 값으로부터 ConfigMap 생성
-![image](https://user-images.githubusercontent.com/81279673/121073309-4ef8f280-c80d-11eb-998e-d13b361d53e4.png)
-
-- 설정된 ConfigMap 정보 가져오기
-![image](https://user-images.githubusercontent.com/81279673/121074021-42c16500-c80e-11eb-8db8-2497dcc099e1.png)
-![image](https://user-images.githubusercontent.com/81279673/121073595-a9924e80-c80d-11eb-80e5-88b40effb31b.png)
-
-- 관련된 프로그램(application.yaml, PayService.java) 적용
-![image](https://user-images.githubusercontent.com/81279673/121073814-fe35c980-c80d-11eb-980b-5dcc1c6d7019.png)
-![image](https://user-images.githubusercontent.com/81279673/121073824-ffff8d00-c80d-11eb-8bda-cc188492d138.png)
-
-## Zero-downtime deploy (Readiness Probe)
-- Room 서비스에 kubectl apply -f deployment_non_readiness.yml 을 통해 readiness Probe 옵션을 제거하고 컨테이너 상태 실시간 확인
-![non_de](https://user-images.githubusercontent.com/47212652/121105020-32c17980-c83e-11eb-8e10-c27ee89a369d.PNG)
-
-- Room 서비스에 kubectl apply -f deployment.yml 을 통해 readiness Probe 옵션 적용
-- readinessProbe 옵션 추가  
-    > initialDelaySeconds: 10  
-    > timeoutSeconds: 2  
-    > periodSeconds: 5  
-    > failureThreshold: 10  
-
-- 컨테이너 상태 실시간 확인
-![dep](https://user-images.githubusercontent.com/47212652/121105025-33f2a680-c83e-11eb-9db0-ee2206a966fe.PNG)
-
-## Self-healing (Liveness Probe)
-- Pay 서비스에 kubectl apply -f deployment.yml 을 통해 liveness Probe 옵션 적용
-
-- liveness probe 옵션을 추가
-- initialDelaySeconds: 10
-- timeoutSeconds: 2
-- periodSeconds: 5
-- failureThreshold: 5
-                 
-  ![스크린샷 2021-06-08 오후 2 16 45](https://user-images.githubusercontent.com/40500484/121127061-2cde8f00-c864-11eb-8b4f-7d3abcba60b3.png)
-
-
-- Pay 서비스에 liveness가 적용된 것을 확인
-
-- Http Get Pay/live를 통해서 컨테이너 상태 실시간 확인 및 재시동 
-
-  
-  ![스크린샷 2021-06-07 오후 9 45 31](https://user-images.githubusercontent.com/40500484/121018788-c9a81a80-c7d9-11eb-9013-1a68ccf1a9b1.png)
-
-
-- Liveness test를 위해 port : 8090으로 변경
-- Delay time 등 옵션도 작게 변경
-  
-  ![스크린샷 2021-06-08 오후 1 59 29](https://user-images.githubusercontent.com/40500484/121125804-1cc5b000-c862-11eb-8d5d-34b5a0ba1df2.png)
-
-- Liveness 적용된 Pay 서비스 , 응답불가로 인한 restart 동작 확인
-
-  ![스크린샷 2021-06-08 오후 1 59 15](https://user-images.githubusercontent.com/40500484/121125928-50083f00-c862-11eb-91dd-c47a74eade37.png)
