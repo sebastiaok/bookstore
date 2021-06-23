@@ -1,0 +1,40 @@
+cd \kafka\bin\windows
+--Zookeeper 실행
+zookeeper-server-start.bat ../../config/zookeeper.properties
+
+--Kafka 실행
+kafka-server-start.bat ../../config/server.properties
+
+--topic list 확인
+kafka-topics.bat --zookeeper localhost:2181 --list
+
+--이벤트 수신
+kafka-console-consumer.bat --bootstrap-server http://localhost:9092 --topic bookstore --from-beginning
+
+
+mvn spring-boot:run 
+
+
+# app 서비스의 책 주문 신청
+http POST http://localhost:8081/orders bookName=MASTERY qty=1 price=21000
+
+# app 서비스의 책 주문 취소
+http DELETE http://localhost:8081/orders/1 
+
+# customercenter 서비스의 주문 상태 조회
+http GET http://localhost:8084/orderStatusViews
+
+# 주문 신청
+http POST http://localhost:8081/orders bookName=SUMMER qty=1 price=17000
+
+# app 서비스의 주문 조회
+http GET http://localhost:8081/orders
+
+# app 서비스의 결제 조회
+http GET http://localhost:8082/pays
+
+# app 서비스의 배송 조회
+http GET http://localhost:8083/deliveries
+
+# customercenter 서비스의 주문 상태 
+http GET http://localhost:8084/orderStatusViews
