@@ -17,17 +17,17 @@
   - [분석/설계](#분석설계) 
   - [구현:](#구현-)
     - [DDD 의 적용](#DDD-의-적용)
-    - [폴리글랏 퍼시스턴스](#폴리글랏-퍼시스턴스)
-    - [동기식 호출 과 Fallback 처리](#동기식-호출-과-Fallback-처리)
-    - [비동기식 호출 과 Eventual Consistency](#비동기식-호출-과-Eventual-Consistency)    
+    - [동기식 호출 과 Fallback 처리](#동기식-호출과-Fallback-처리)
+    - [이벤트드리븐 아키텍쳐의 구현](#이벤트드리븐-아키텍쳐의-구현)
+    - [Poliglot](#폴리글랏-퍼시스턴스)
+    - [Gateway](#Gateway)   
   - [운영](#운영)
     - [CI/CD 설정](#cicd설정)
-    - [동기식 호출 / 서킷 브레이킹 / 장애격리](#동기식-호출-서킷-브레이킹-장애격리)
-    - [오토스케일아웃 (HPA)](#오토스케일아웃_(HPA))
-    - [ConfigMap](#ConfigMap)
-    - [Zero-downtime deploy (Readiness Probe)](#Zero-downtime_deploy_(Readiness_Probe))
-    - [Self-healing (Liveness Probe)](#Self-healing_(Liveness_Probe))
-
+    - [동기식 호출 / 서킷 브레이킹 / 장애격리](#동기식-호출-/-서킷-브레이킹-/-장애격리)
+    - [오토스케일 아웃](#오토스케일-아웃)
+    - [Persistence Volume](#Persistence-Volume)  [ConfigMap](#ConfigMap)
+    - [Self_healing (liveness probe)](#Self_healing-(liveness-probe))
+    - [무정지 재배포](#무정지-재배포)
 
 
 # 서비스 시나리오
@@ -124,7 +124,7 @@
 ![image](https://user-images.githubusercontent.com/81279673/122194242-399c5c00-ced0-11eb-8f8c-555fae742444.png)
 
 ## Event Storming 결과
-* MSAEZ 모델링한 이벤트스토밍 결과:  http://www.msaez.io/#/storming/pYauKq27pAMMO4ZZcMLRDtjzgIv1/share/40d9c225e0f9826deff3b8035d97b38f
+* MSAEZ 모델링한 이벤트스토밍 결과:  http://www.msaez.io/#/storming/pYauKq27pAMMO4ZZcMLRDtjzgIv1/430f0486a27a998b5ae250808a899a95
 
 
 ### 이벤트 도출
@@ -195,7 +195,7 @@
 
 
 ### 완성된 모델
-![image](https://user-images.githubusercontent.com/81279673/122315667-76f6fd00-cf55-11eb-8d7c-aef0294c98af.png)
+![image](https://user-images.githubusercontent.com/81279673/123042198-6650f600-d431-11eb-8492-2bef51719d0f.png)
 
     - 수정된 모델은 모든 요구사항을 커버함
 
