@@ -1,0 +1,6 @@
+bookstore\Ordered.class
+bookstore\OrderRepository.class
+bookstore\AbstractEvent.class
+bookstore\OrderController.class
+bookstore\AppApplication.class
+bookstore\AbstractEvent$1.class
