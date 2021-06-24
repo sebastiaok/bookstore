@@ -814,19 +814,30 @@ siege -c100 -t30S -v --content-type "application/json" 'http://52.231.52.214:808
 ![AutoScaling](https://user-images.githubusercontent.com/75401933/105278740-75651b00-5be9-11eb-9f06-11253eea34d6.png)
 
 ## Persistence Volume
+store 서비스가 PVC(PersistentVolumeClaim)를 사용하도록 설정하였다.
 
-visit 컨테이너를 마이크로서비스로 배포하면서 영속성 있는 저장장치(Persistent Volume)를 적용함
-
-• PVC 설정 확인
-
-![pvcDescribe](https://user-images.githubusercontent.com/75401933/105258282-be5aa680-5bcc-11eb-86c7-531f48900c57.png)
-
-
-• PVC Volume설정 확인
-visit 구현체에서 해당 pvc를 volumeMount 하여 사용 
-
+- PVC(PersistentVolumeClaim) 생성
+> volume-pve.yaml
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azure-managed-disk
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: default
+  resources:
+    requests:
+      storage: 1Gi
 ```
-kubectl get pod visit -o yaml
+- PVC 설정 확인
+![image](https://user-images.githubusercontent.com/81279673/123236993-3cbeca00-d518-11eb-9869-9bd8030c82c9.png)
+![image](https://user-images.githubusercontent.com/81279673/123237222-6ed02c00-d518-11eb-97ea-0e74bc3b6216.png)
+
+- store 서비스에서 해당 pvc를 volumeMount 하여 사용 
+```
+kubectl get pod store -o yaml
 ```
 ![PVC볼륨설정확인](https://user-images.githubusercontent.com/75401933/105261676-34faa280-5bd3-11eb-8a7c-aa27b73b95a7.png)
 
