@@ -753,6 +753,95 @@ kubectl expose deploy app --port=8080
 
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
+
+- Spring FeignClient + Hystrix을 사용하여 서킷 브레이킹 구현
+- Hystrix 설정 : 결제 요청 쓰레드의 처리 시간이 410ms가 넘어서기 시작한 후 어느정도 지속되면 서킷 브레이커가 닫히도록 설정
+- 결제를 요청하는 Conference 서비스에서 Hystrix 설정
+
+> Conference 서비스의 application.yml 파일
+```yaml
+feign:
+  hystrix:
+    enabled: true
+hystrix:
+  command:
+    default:
+      execution.isolation.thread.timeoutInMilliseconds: 610
+```
+
+- 결제 서비스(pay)에서 임의 부하 처리 - 400 밀리에서 증감 220 밀리 정도 왔다갔다 하게
+> Pay 서비스의 Pay.java 파일
+```java
+    @PostPersist
+    public void onPostPersist(){
+        if (this.getStatus() != "PAID") return;
+
+        Paid paid = new Paid();
+        paid.setPayId(this.payId);
+        paid.setPayStatus(this.status);
+        paid.setConferenceId(this.conferenceId);
+        paid.setRoomNumber(this.roomNumber);
+        paid.publishAfterCommit();
+
+        try {
+            Thread.currentThread().sleep((long) (400 + Math.random() * 220));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+```
+
+- 부하테스터 siege 툴을 통한 서킷브레이커 동작 확인:
+    - 동시사용자 100명
+    - 60초 동안 실시
+
+```
+siege -c100 -t60S -r10 -v --content-type "application/json" 'http://52.231.34.176:8080/conferences POST {"status":"", "payId":0, "roomNumber":1}'
+```
+- 부하가 발생하고 서킷브레이커가 발동하여 요청 실패하였고, 밀린 부하가 다시 처리되면서 회의실 신청(Apply)를 받기 시작
+![Cap 2021-06-08 10-37-57-954](https://user-images.githubusercontent.com/80938080/121108974-a450f600-c845-11eb-94ed-621b894f0da1.png)
+
+
+- 운영 중인 시스템은 죽지 않고 지속적으로 서킷브레이커에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 47.10% 가 성공하였고, 53%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 Retry 설정과 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
+![Cap 2021-06-08 10-39-01-129](https://user-images.githubusercontent.com/80938080/121109032-bdf23d80-c845-11eb-906b-9416924c6c1c.png)
+
+
+## 오토스케일아웃 (HPA)
+앞서 서킷브레이커는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다. 
+
+- conference의 deployment.yaml 파일 설정
+
+<img width="400" alt="야믈" src="https://user-images.githubusercontent.com/80210609/121058380-3b449080-c7fb-11eb-92ab-20852519d9d9.PNG">
+
+- 신청서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 15프로를 넘어서면 replica 를 10개까지 늘려준다:
+
+```
+kubectl autoscale deploy confenrence --min=1 --max=10 --cpu-percent=15
+```
+
+- hpa 설정 확인
+
+<img width="600" alt="스케일-hpa" src="https://user-images.githubusercontent.com/80210609/121057419-37fcd500-c7fa-11eb-81ff-8d5062a219b4.PNG">
+
+
+- CB 에서 했던 방식대로 워크로드를 1분 동안 걸어준다.
+```
+siege -c100 -t60S -r10 -v --content-type "application/json" 'http://conference:8080/conferences POST {"roomNumber": "123"}'
+```
+- 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
+```
+kubectl get deploy conference -w
+```
+
+- 어느정도 시간이 흐른 후 스케일 아웃이 벌어지는 것을 확인할 수 있다:
+<img width="700" alt="스케일최종" src="https://user-images.githubusercontent.com/80210609/121056827-937a9300-c7f9-11eb-9ebc-ca86c271d3c3.PNG">
+
+- siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
+<img width="600" alt="상태" src="https://user-images.githubusercontent.com/80210609/121057028-cde43000-c7f9-11eb-88d2-c022dddca49f.PNG">
+  
+  
+  
+## 동기식 호출 / 서킷 브레이킹 / 장애격리
 서킷 브레이킹 프레임워크의 선택: Spring FeignClient + Hystrix 옵션을 사용하여 구현함
 시나리오는 매칭요청(match)-->결제(payment) 시의 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 결제 요청이 과도할 경우 CB 를 통하여 장애격리.
 
