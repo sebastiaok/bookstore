@@ -627,6 +627,46 @@ CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 �
 API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였다.
 > gateway > application.xml 설정
 ```yaml
+server:
+  port: 8088
+
+---
+
+spring:
+  profiles: default
+  cloud:
+    gateway:
+      routes:
+        - id: app
+          uri: http://localhost:8081
+          predicates:
+            - Path=/orders/** 
+        - id: pay
+          uri: http://localhost:8082
+          predicates:
+            - Path=/pays/** 
+        - id: store
+          uri: http://localhost:8083
+          predicates:
+            - Path=/deliveries/** 
+        - id: customerCenter
+          uri: http://localhost:8084
+          predicates:
+            - Path= /oderStatusViews/**
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "*"
+            allowedMethods:
+              - "*"
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+
+
+---
+
 spring:
   profiles: docker
   cloud:
@@ -662,17 +702,27 @@ spring:
 server:
   port: 8080
 ```
-- Gateway 서비스 실행 상태에서 8088과 8081로 각각 서비스 실행하였을 때 동일하게 match 서비스 실행되었다.
+- Gateway 서비스 실행 상태에서 8088과 8081로 각각 order 서비스를 실행하였을 때 동일한 결과가 출력되었다.
 ```
-http localhost:8088/matches id=50 price=50000 status=matchRequest
+http POST http://localhost:8081/orders bookName=SUMMER qty=1 price=17000
 ```
-![8088포트](https://user-images.githubusercontent.com/45473909/105039570-0f22b000-5aa4-11eb-9090-45662dcd79d0.PNG)
-
+![image](https://user-images.githubusercontent.com/81279673/123205777-76caa480-d4f5-11eb-856e-e949da482b6f.png)
 ```
-http localhost:8081/matches id=51 price=50000 status=matchRequest
+http POST http://localhost:8088/orders bookName=SUMMER qty=1 price=17000
 ```
-![8081포트](https://user-images.githubusercontent.com/45473909/105039551-0a5dfc00-5aa4-11eb-86c0-c3fc63d5b0f6.PNG)
-
+![image](https://user-images.githubusercontent.com/81279673/123205929-b5f8f580-d4f5-11eb-8f44-327d340c86b2.png)
+```
+http GET http://localhost:8081/orders
+```
+![image](https://user-images.githubusercontent.com/81279673/123205827-88ac4780-d4f5-11eb-9f83-1d90e361dcd1.png)
+```
+http GET http://localhost:8088/orders
+```
+![image](https://user-images.githubusercontent.com/81279673/123205862-9792fa00-d4f5-11eb-8b3b-dfee2c8938fb.png)
+```
+http POST http://localhost:8088/orders bookName=SUMMER qty=1 price=17000
+```
+![image](https://user-images.githubusercontent.com/81279673/123205929-b5f8f580-d4f5-11eb-8f44-327d340c86b2.png)
 
 
 ## CI/CD 설정
