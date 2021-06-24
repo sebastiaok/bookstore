@@ -719,10 +719,6 @@ http GET http://localhost:8081/orders
 http GET http://localhost:8088/orders
 ```
 ![image](https://user-images.githubusercontent.com/81279673/123205862-9792fa00-d4f5-11eb-8b3b-dfee2c8938fb.png)
-```
-http POST http://localhost:8088/orders bookName=SUMMER qty=1 price=17000
-```
-![image](https://user-images.githubusercontent.com/81279673/123205929-b5f8f580-d4f5-11eb-8f44-327d340c86b2.png)
 
 
 ## CI/CD 설정
@@ -730,27 +726,27 @@ http POST http://localhost:8088/orders bookName=SUMMER qty=1 price=17000
 
 - git에서 소스 가져오기
 ```
-git clone https://github.com/jypark002/hifive.git
+git clone https://github.com/sebastiaok/bookstore.git
 ```
 - Build
 ```
-cd hifive
-cd conference
+cd bookstore
+cd app
 mvn package
 ```
 - 도커라이징 : Azure 레지스트리에 도커 이미지 푸시하기
 ```
-az acr build --registry skccuser05 --image skccuser05.azurecr.io/conference:latest .
+az acr build --registry skccuser05 --image skccuser03.azurecr.io/app:latest .
 ```
 - 컨테이너라이징 : 디플로이 생성 확인
 ```
-kubectl create deploy conference --image=skccuser05.azurecr.io/conference:latest
+kubectl create deploy app --image=skccuser03.azurecr.io/app:latest
 ```
 - 컨테이너라이징 : 서비스 생성
 ```
-kubectl expose deploy conference --port=8080
+kubectl expose deploy app --port=8080
 ```
-- customerCenter, pay, room, gateway 서비스도 동일한 배포 작업 반복
+- pay, store, customercenter, gateway 서비스도 동일한 작업 진행
 > 결과확인
 ![image](https://user-images.githubusercontent.com/81279673/123195220-c5227800-d4e2-11eb-840d-738023f9c622.png)
 
