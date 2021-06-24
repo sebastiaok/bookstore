@@ -728,7 +728,7 @@ http GET http://localhost:8088/orders
 ```
 git clone https://github.com/sebastiaok/bookstore.git
 ```
-- Build
+- 소스코드 빌드, 패키징
 ```
 cd bookstore
 cd app
