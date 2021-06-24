@@ -841,8 +841,10 @@ kubectl get pod store -o yaml
 ```
 ![image](https://user-images.githubusercontent.com/81279673/123258702-9e8a2e80-d52e-11eb-99b6-1bfbcf2fe7ef.png)
 
-- store pod에 접속하여 mount 용량 확인
-![image](https://user-images.githubusercontent.com/81279673/123260421-80bdc900-d530-11eb-84fe-8de2920357e4.png)
+- store pod에 접속하여 마운트 용량 확인
+- 마운트된 경로에 파일을 생성하고 다른 pod에서 파일 확인
+![image](https://user-images.githubusercontent.com/81279673/123262298-b2379400-d532-11eb-87a7-9e2d42cc244f.png)
+![image](https://user-images.githubusercontent.com/81279673/123262081-76043380-d532-11eb-92e3-fedbb6c987e5.png)
 
 
 ## Self_healing (liveness probe)
