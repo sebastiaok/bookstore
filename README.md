@@ -19,13 +19,13 @@
     - [DDD 의 적용](#DDD-의-적용)
     - [동기식 호출과 Fallback 처리](#동기식-호출과-Fallback-처리)
     - [이벤트드리븐 아키텍쳐의 구현](#이벤트드리븐-아키텍쳐의-구현)
-    - [Poliglot](#폴리글랏-퍼시스턴스)
+    - [Poliglot](#Poliglot)
     - [Gateway](#Gateway)   
   - [운영](#운영)
-    - [CI/CD 설정](#cicd설정)
+    - [CI/CD 설정](#CI/CD 설정)
     - [동기식 호출 / 서킷 브레이킹 / 장애격리](#동기식-호출-/-서킷-브레이킹-/-장애격리)
     - [오토스케일 아웃](#오토스케일-아웃)
-    - [Persistence Volume](#Persistence-Volume)  [ConfigMap](#ConfigMap)
+    - [Persistence Volume](#Persistence-Volume) 
     - [Self_healing (liveness probe)](#Self_healing-(liveness-probe))
     - [무정지 재배포](#무정지-재배포)
 
@@ -804,62 +804,38 @@ siege -c100 -t60S -r10 -v --content-type "application/json" 'http://app:8080/ord
 ![image](https://user-images.githubusercontent.com/81279673/123304528-00ac5900-d55a-11eb-98df-891630a37ff5.png)
 
 
-## 오토스케일아웃 (HPA)
+## 오토스케일아웃
 앞서 서킷브레이커는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 하였다.
 
-- 신청서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 15프로를 넘어서면 replica 를 10개까지 늘려준다:
-
+- 부하가 제대로 걸리기 위해서, 서비스의 리소스를 줄여서 재배포한다.
 > (app) deployment.yaml
 ```yaml
-kubectl autoscale deployment match --cpu-percent=10 --min=1 --max=10
+          resources:
+            limits:
+              cpu: 500m
+            requests:
+              cpu: 200m  
 ```
-<img width="400" alt="야믈" src="https://user-images.githubusercontent.com/80210609/121058380-3b449080-c7fb-11eb-92ab-20852519d9d9.PNG">
-
-
+- 신청서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 15프로를 넘어서면 replica 를 10개까지 늘려준다
 ```
-kubectl autoscale deploy confenrence --min=1 --max=10 --cpu-percent=15
+kubectl autoscale deploy app --min=1 --max=10 --cpu-percent=15
 ```
-
-- hpa 설정 확인
-
-<img width="600" alt="스케일-hpa" src="https://user-images.githubusercontent.com/80210609/121057419-37fcd500-c7fa-11eb-81ff-8d5062a219b4.PNG">
-
+- HPA 설정 확인
+![image](https://user-images.githubusercontent.com/81279673/123308586-d0b38480-d55e-11eb-96e5-c0459908ebc3.png)
 
 - CB 에서 했던 방식대로 워크로드를 1분 동안 걸어준다.
 ```
-siege -c100 -t60S -r10 -v --content-type "application/json" 'http://conference:8080/conferences POST {"roomNumber": "123"}'
+siege -c100 -t60S -r10 -v --content-type "application/json" 'http://app:8080/orders POST {"bookName":"SUMMER", "qty":1, "price":21000}'
 ```
-- 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
+- 오토스케일 모니터링을 걸어 스케일 아웃이 자동으로 진행됨을 확인한다.
 ```
-kubectl get deploy conference -w
+kubectl get deploy app -w
 ```
+![image](https://user-images.githubusercontent.com/81279673/123310331-ef1a7f80-d560-11eb-9c36-0b9efba8bf1b.png)
+- 어느정도 시간이 흐른 후 스케일 아웃이 벌어지고, Pod Replica 수가 증가하는 것을 확인할 수 있다.
+![image](https://user-images.githubusercontent.com/81279673/123310787-70721200-d561-11eb-8517-d1bd81aed2a9.png)
+![image](https://user-images.githubusercontent.com/81279673/123311317-fee69380-d561-11eb-9007-40eeeafc19a5.png)
 
-- 어느정도 시간이 흐른 후 스케일 아웃이 벌어지는 것을 확인할 수 있다:
-<img width="700" alt="스케일최종" src="https://user-images.githubusercontent.com/80210609/121056827-937a9300-c7f9-11eb-9ebc-ca86c271d3c3.PNG">
-
-- siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
-<img width="600" alt="상태" src="https://user-images.githubusercontent.com/80210609/121057028-cde43000-c7f9-11eb-88d2-c022dddca49f.PNG">
-  
-  
-## 오토스케일 아웃
-
-앞서 CB 는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다.
-match구현체에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 10프로를 넘어서면 replica 를 10개까지 늘려준다:
-
-- autosclae 적용
-
-```
-kubectl autoscale deployment match --cpu-percent=10 --min=1 --max=10
-```
-![AutoScaling1](https://user-images.githubusercontent.com/75401933/105279069-279ce280-5bea-11eb-9efd-a1b310cfd75b.png)
-
-```
-kubectl exec -it pod/siege -- /bin/bash
-siege -c100 -t30S -v --content-type "application/json" 'http://52.231.52.214:8080/matches POST  {"id": 1000, "price":1000, "status": "matchRequest", "student":"testStudent"}'
-```
-부하에 따라 visit pod의 cpu 사용률이 증가했고, Pod Replica 수가 증가하는 것을 확인할 수 있었음
-
-![AutoScaling](https://user-images.githubusercontent.com/75401933/105278740-75651b00-5be9-11eb-9f06-11253eea34d6.png)
 
 ## Persistence Volume
 store 서비스가 PVC(PersistentVolumeClaim)를 사용하도록 설정하였다.
