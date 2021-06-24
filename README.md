@@ -17,7 +17,7 @@
   - [분석/설계](#분석설계) 
   - [구현:](#구현-)
     - [DDD 의 적용](#DDD-의-적용)
-    - [동기식 호출 과 Fallback 처리](#동기식-호출과-Fallback-처리)
+    - [동기식 호출과 Fallback 처리](#동기식-호출과-Fallback-처리)
     - [이벤트드리븐 아키텍쳐의 구현](#이벤트드리븐-아키텍쳐의-구현)
     - [Poliglot](#폴리글랏-퍼시스턴스)
     - [Gateway](#Gateway)   
@@ -676,13 +676,33 @@ http localhost:8081/matches id=51 price=50000 status=matchRequest
 
 
 ## CI/CD 설정
-각 구현체들은 각자의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 Azure를 사용하였으며, pipeline build script 는 각 프로젝트 폴더 이하에 deployment.yml, service.yml 에 포함되었다
+각 구현체들은 각각의 source repository 에 구성되었고, Build, 도커라이징, deploy 및 서비스 생성을 진행하였다.
 
-![CI파이프라인](https://user-images.githubusercontent.com/75401933/105256578-58205480-5bc9-11eb-89e6-490906ae1372.png)
-
-![CD릴리즈](https://user-images.githubusercontent.com/75401933/105256635-7a19d700-5bc9-11eb-87ab-0c3b6267a15c.png)
-
-![CD릴리즈스테이지](https://user-images.githubusercontent.com/75401933/105256710-a33a6780-5bc9-11eb-9bae-33a6965c17b1.png)
+- git에서 소스 가져오기
+```
+git clone https://github.com/jypark002/hifive.git
+```
+- Build
+```
+cd hifive
+cd conference
+mvn package
+```
+- 도커라이징 : Azure 레지스트리에 도커 이미지 푸시하기
+```
+az acr build --registry skccuser05 --image skccuser05.azurecr.io/conference:latest .
+```
+- 컨테이너라이징 : 디플로이 생성 확인
+```
+kubectl create deploy conference --image=skccuser05.azurecr.io/conference:latest
+```
+- 컨테이너라이징 : 서비스 생성
+```
+kubectl expose deploy conference --port=8080
+```
+- customerCenter, pay, room, gateway 서비스도 동일한 배포 작업 반복
+> 결과확인
+![image](https://user-images.githubusercontent.com/81279673/123195220-c5227800-d4e2-11eb-840d-738023f9c622.png)
 
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
