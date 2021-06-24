@@ -592,7 +592,7 @@ MSAez 모델링 도구를 활용하여 각 서비스의 이벤트와 폴리시�
 ```
 
 ## CQRS
-Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이(Composite 서비스나 조인SQL 등 없이)도 내 서비스의 화면 구성과 잦은 조회가 가능하다. 
+Materialized View 구현을 통해 다른 마이크로서비스의 데이터 원본에 접근없이(Composite 서비스나 조인SQL 등 없이)도 내 서비스의 화면 구성과 잦은 조회가 가능하도록 구현하였다.
 - 주문상태조회(orderStatusView)로 주문(order), 결제(pay), 배송(delivery) 상태를 고객이 언제든지 조회할 수 있도록 CQRS로 구현하였다.
 - 발행된 이벤트 기반으로 Kafka를 통해 수신된 데이터를 별도 테이블에 적재하여 성능 Issue를 사전에 예방할 수 있다.
 ```
@@ -604,7 +604,7 @@ http GET http://localhost:8084/orderStatusViews
 
 
 ## 폴리글랏 퍼시스턴스
-- CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 구현했으며, 서로 다른 종류의 DB에도 문제없이 동작하여 다형성을 만족하도록 구현하였다.
+CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 구현했으며, 서로 다른 종류의 DB에도 문제없이 동작하여 다형성을 만족하도록 구현하였다.
 
 > app, pay, store 서비스의 pom.xml 설정
 ```xml
@@ -624,7 +624,7 @@ http GET http://localhost:8084/orderStatusViews
 ```
 
 ## Gateway 적용
-- API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였습니다.
+API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였다.
 > gateway > application.xml 설정
 ```yaml
 spring:
@@ -706,8 +706,6 @@ kubectl expose deploy conference --port=8080
 
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
-
-
 서킷 브레이킹 프레임워크의 선택: Spring FeignClient + Hystrix 옵션을 사용하여 구현함
 시나리오는 매칭요청(match)-->결제(payment) 시의 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 결제 요청이 과도할 경우 CB 를 통하여 장애격리.
 
