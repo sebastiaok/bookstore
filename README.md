@@ -722,7 +722,7 @@ http GET http://localhost:8088/orders
 
 
 ## CI/CD 설정
-각 구현체들은 각각의 source repository 에 구성되었고, Build, 도커라이징, deploy 및 서비스 생성을 진행하였다.
+각 구현체들은 각각의 source repository 에 구성되었고, 소스코드 빌드 및 패키징/도커라이징/deploy 및 서비스 생성을 진행하였다.
 
 - git에서 소스 가져오기
 ```
@@ -747,6 +747,7 @@ kubectl create deploy app --image=skccuser03.azurecr.io/app:latest
 kubectl expose deploy app --port=8080
 ```
 - pay, store, customercenter, gateway 서비스도 동일한 작업 진행
+
 > 결과확인
 ![image](https://user-images.githubusercontent.com/81279673/123195220-c5227800-d4e2-11eb-840d-738023f9c622.png)
 
