@@ -749,7 +749,7 @@ kubectl expose deploy app --port=8080
 - pay, store, customercenter, gateway 서비스도 동일한 작업 진행
 
 > 결과확인
-![image](https://user-images.githubusercontent.com/81279673/123195220-c5227800-d4e2-11eb-840d-738023f9c622.png)
+![image](https://user-images.githubusercontent.com/81279673/123206966-8ea32800-d4f7-11eb-8de4-6e338add1b81.png)
 
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
@@ -844,120 +844,70 @@ mypage구현체의 deployment.yaml 소스 서비스포트를 8080이 아닌 고�
 
 
 ## 무정지 재배포
+클러스터 배포 시 readinessProbe 설정이 없으면 다운타임이 존재하게 된다. 무정지 재배포가 100% 되는 것인지 확인하기 위해서 readinessProbe 옵션을 삭제/원복 후 테스트를 하였다. 배포시 다운타임의 존재 여부를 확인하기 위하여, siege 라는 부하 테스트 툴을 사용한다. (Availability 체크)
 
-먼저 무정지 재배포가 100% 되는 것인지 확인하기 위해서 Autoscaler 이나 CB 설정을 제거함
-seige 로 배포작업 직전에 워크로드를 모니터링 함.
+1. readinessProbe가 없는 상태에서 배포 진행
 
-- match의 deployment.yml의 readiness설정 삭제 후 CI/CD를 통한 재배포
-
-![image](https://user-images.githubusercontent.com/75401933/105279725-8b73db00-5beb-11eb-91d8-5eb0f450a1f8.png)
-
-- 부하 측정을 siege로 진입하여 Availability 확인
-
+- readiness 옵션 제거
+> (app) kubernetes/deployment.yml
+```yaml
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: skccuser03.azurecr.io/app:latest
+          ports:
+            - containerPort: 8080
+#          readinessProbe:
+#           httpGet:
+#              path: '/actuator/health'
+#              port: 8080
+#            initialDelaySeconds: 10
+#            timeoutSeconds: 2
+#            periodSeconds: 5
+#            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: '/actuator/health'
+              port: 8080
+            initialDelaySeconds: 120
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 5
 ```
-siege -c10 -t30S -r10 --content-type "application/json" 'http://match:8080/matches POST  {"id": 1000, "price":1000, "status": "matchRequest", "student":"testStudent"}'
-
+- 설정 삭제 확인
+```yaml
+kubectl get deploy app -o yaml
 ```
-1. CI/CD를 통해 새로운 배포 시작
-1. seige 의 화면으로 넘어가서 Availability 가 100% 미만으로 떨어졌는지 확인
-
-![availablity변화](https://user-images.githubusercontent.com/75401933/105281331-3f2a9a00-5bef-11eb-8961-d89c88147eb3.png)
-
-1. 배포기간중 Availability 가 평소 100%에서 70% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행한 것이기 때문
-1. 이를 막기위해 Readiness Probe 를 재설정 후 CI/CD를 통해 새로운 배포 시작
-1. 동일한 시나리오로 재배포 한 후 Availability 확인
-
-![image](https://user-images.githubusercontent.com/75401933/105281668-02ab6e00-5bf0-11eb-9dff-c277a96eacca.png)
-
-배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
-
-
-
-
-
-
-
-
-
-# 신규MSA추가_학생포인트관리시스템
-
-
-
-## 신규서비스 분석설계
-선생님 방문을 요청하는 학생고객 관리를 위하여 학생 포인트 관리 기능을 추가하기로 하였다. 
-추가된 기능적 요구사항은 다음과 같다.
-1. 각 시스템에 학생정보 attribute 추가 관리한다.
-1. 방문이 assign 되었을 때 학생의 포인트가 100만큼 증가한다. (신규학생의 경우 학생정보를 신규 생성한 후 100포인트를 생성한다.)
-1. 방문이 취소되었을 경우 학생의 포인트를 100 차감한다.
-
-
-
-### 변경된 이벤트스토밍
-![변경된이벤트스토밍](https://user-images.githubusercontent.com/75401933/105131136-b26ad800-5b2b-11eb-9e2a-1918de08addc.png)
-
-
-
-### 헥사고날아키텍쳐의 변화
-![변경된헥사고날아키텍쳐](https://user-images.githubusercontent.com/75401933/105131271-f4941980-5b2b-11eb-847c-37adbf21ad81.png)
-신규추가된 학생 포인트 관리시스템은 정책구독만 하며 event를 발행하지는 않는다.
-
-
-
-## 신규서비스 구현
-기존 마이크로서비스에 수정을 발생시키지 않도록 req/res 방식이 아닌 event를 subscribe 하는 방식으로 구현하였다. 기존 운영중인 마이크로 서비스에는 student attribute를 신규추가한 것 외에 변경사항은 없으며, 기존 MSA의 아키텍처나 DB구조에 영향을 주지 않는다. 
-
-### 구현 테스트
-- 학생 jane에게 방문assign 시 student시스템에서 jane의 point가 100 증가
-
-![image](https://user-images.githubusercontent.com/75401933/105269308-01217c00-5bd7-11eb-9eb3-611935cccc47.png)
-
-- jane이 방문 취소 시 point 100 차감
-
-![image](https://user-images.githubusercontent.com/75401933/105269597-93298480-5bd7-11eb-815f-4d4173b96242.png)
-
-
-## 운영과 Retirement
-req/res 방식으로 구현하지 않았기 때문에 서비스가 불필요해져도 Deployment에서 제거되면 기존 MSA에 어떤 영향도 주지 않는다.
-(결제(payment) MSA의 경우 match-payment간 req/res 방식으로 구현되어 있기 때문에 API 변화 또는 Retirement 시 매치(match) MSA의 변경을 초래한다)
-
+![image](https://user-images.githubusercontent.com/81279673/123229494-514b9400-d511-11eb-9a9e-4915c4aefe2d.png)
+- siege 부하테스트 툴을 사용하여 Availability 확인
 ```
-# Payment API 변화 시 Match.java의 수정
+# 충분한 시간만큼 부하를 준다
+siege -c1 -t60S -v http://app:8080/orders --delay=1S
 
-    @PostPersist
-    public void onPostPersist(){
-
-        Payment payment = new Payment();
-        //변수 setting
-        payment.setMatchId(Long.valueOf(this.getId()));
-        payment.setPrice(Integer.valueOf(this.getPrice()));
-        payment.setStudent(String.valueOf(this.getStudent()));
-        payment.setPaymentAction("Approved");
-
-        MatchApplication.applicationContext.getBean(PaymentService.class)
-                .paymentRequest(payment);
-                
-                --> 
-
-        MatchApplication.applicationContext.getBean(PaymentService.class)
-                .paymentRequest2(payment);
-    }
+# 신규버전 배포
+kubectl set image deploy app app=skccuser03.azurecr.io/app:v1
 ```
+- seige 화면에서 Availability 가 100% 미만으로 떨어졌는지 확인
+![image](https://user-images.githubusercontent.com/81279673/123224253-9de0a080-d50c-11eb-9abf-88fd353d8194.png)
 
+2. readinessProbe 설정 후 새로운 배포 진행
 ```
-# Payment Retirement 시 Match.java의 수정
-
-    @PostPersist
-    public void onPostPersist(){
-        /**
-        Payment payment = new Payment();
-        //변수 setting
-        payment.setMatchId(Long.valueOf(this.getId()));
-        payment.setPrice(Integer.valueOf(this.getPrice()));
-        payment.setStudent(String.valueOf(this.getStudent()));
-        payment.setPaymentAction("Approved");
-
-        MatchApplication.applicationContext.getBean(PaymentService.class)
-                .paymentRequest(payment);
-        **/
-    }
+kubectl get deploy app -o yaml
 ```
+![image](https://user-images.githubusercontent.com/81279673/123225350-98378a80-d50d-11eb-99af-3c2849562605.png)
+
+- 동일한 시나리오로 재배포 한 후 Availability 확인
+- 배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인
+![image](https://user-images.githubusercontent.com/81279673/123226593-c4074000-d50e-11eb-87a9-58514c61fc70.png)
+
+
+
+
