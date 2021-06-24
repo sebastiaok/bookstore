@@ -15,16 +15,19 @@
   - [서비스 시나리오](#서비스-시나리오)
   - [체크포인트](#체크포인트)
   - [분석/설계](#분석설계) 
-  - [구현:](#구현-)
+  - [구현](#구현)
     - [DDD 의 적용](#DDD-의-적용)
     - [동기식 호출과 Fallback 처리](#동기식-호출과-Fallback-처리)
     - [이벤트드리븐 아키텍쳐의 구현](#이벤트드리븐-아키텍쳐의-구현)
-    - [Poliglot](#Poliglot)
+    - [시간적 디커플링 / 장애격리](#시간적-디커플링-/-장애격리)
+    - [Correlation](#Correlation)
+    - [CQRS](#CQRS)
+    - [폴리글랏 퍼시스턴스](#폴리글랏-퍼시스턴스)
     - [Gateway](#Gateway)   
   - [운영](#운영)
-    - [CI/CD 설정](#CI/CD 설정)
+    - [CI/CD 설정](#CI/CD-설정)
     - [동기식 호출 / 서킷 브레이킹 / 장애격리](#동기식-호출-/-서킷-브레이킹-/-장애격리)
-    - [오토스케일 아웃](#오토스케일-아웃)
+    - [오토스케일아웃](#오토스케일아웃)
     - [Persistence Volume](#Persistence-Volume) 
     - [Self_healing (liveness probe)](#Self_healing-(liveness-probe))
     - [무정지 재배포](#무정지-재배포)
@@ -385,7 +388,7 @@ http GET http://localhost:8082/pays
 ![image](https://user-images.githubusercontent.com/81279673/122730316-0d5c5300-d2b5-11eb-8696-b18773a8de5a.png)
 
 
-## 동기식 호출 과 Fallback 처리
+## 동기식 호출과 Fallback 처리
 
 분석단계에서의 비기능 요구사항 중 하나로 결제처리가 되지 않으면 주문신청이 되지 않도록 동기식 호출을 통한 트랜잭션으로 처리하기로 하였다. 
 호출 프로토콜은 이미 앞서 Rest Repository에 의해 노출되어 있는 REST 서비스를 FeignClient를 이용하여 호출하였다. 
@@ -623,7 +626,7 @@ CustomerCenter의 경우 H2 DB인 App/Pay/Store 서비스와 다르게 Hsql로 �
     </dependency>``
 ```
 
-## Gateway 적용
+## Gateway
 API Gateway를 통하여 마이크로서비스들의 진입점을 단일화하였다.
 > gateway > application.xml 설정
 ```yaml
