@@ -848,11 +848,27 @@ kubectl get pod store -o yaml
 
 
 ## Self_healing (liveness probe)
-mypage구현체의 deployment.yaml 소스 서비스포트를 8080이 아닌 고의로 8081로 변경하여 재배포한 후 pod 상태 확인
-
-- 정상/비정상 pod 정보 조회
-
-![image](https://user-images.githubusercontent.com/75401933/105279506-08528500-5beb-11eb-89a0-346481020201.png)
+Self-healing 확인을 위해 app 서비스의 deployment.yml Liveness Probe port를 8080이 아닌 8081로 변경하여 재배포한 후 pod 상태를 확인하였다.
+- Liveness Probe 옵션 변경
+> (app) kubernetes/deployment.yml
+```yaml
+          livenessProbe:
+            httpGet:
+              path: '/actuator/health'
+              port: 8081
+            initialDelaySeconds: 120
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 5
+```
+- app pod에 Liveness Probe 옵션 적용 확인
+```
+kubectl describe pod app-7447857c97-655sw
+```
+![image](https://user-images.githubusercontent.com/81279673/123283736-a1911900-d546-11eb-9487-2b073227abe9.png)
+- app pod 적용 시 retry 발생 확인
+![image](https://user-images.githubusercontent.com/81279673/123282597-a0132100-d545-11eb-9084-c6f9ee4a1b8b.png)
+![image](https://user-images.githubusercontent.com/81279673/123282651-adc8a680-d545-11eb-97ad-8d31d9956560.png)
 
 
 ## 무정지 재배포
