@@ -839,11 +839,10 @@ spec:
 ```
 kubectl get pod store -o yaml
 ```
-![PVC볼륨설정확인](https://user-images.githubusercontent.com/75401933/105261676-34faa280-5bd3-11eb-8a7c-aa27b73b95a7.png)
+![image](https://user-images.githubusercontent.com/81279673/123258702-9e8a2e80-d52e-11eb-99b6-1bfbcf2fe7ef.png)
 
-- visit pod에 접속하여 mount 용량 확인
-
-![image](https://user-images.githubusercontent.com/75401933/105268535-c3702380-5bd5-11eb-933e-a82b92e90f0b.png)
+- store pod에 접속하여 mount 용량 확인
+![image](https://user-images.githubusercontent.com/81279673/123260421-80bdc900-d530-11eb-84fe-8de2920357e4.png)
 
 
 ## Self_healing (liveness probe)
