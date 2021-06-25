@@ -776,7 +776,7 @@ siege -c100 -t60S -r10 -v --content-type "application/json" 'http://app:8080/ord
             requests:
               cpu: 200m  
 ```
-- 신청서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 15프로를 넘어서면 replica 를 10개까지 늘려준다
+- 신청서비스에 대한 replica를 동적으로 늘려주도록 HPA를 설정한다. 설정은 CPU 사용량이 15% 를 넘어서면 replica를 10개까지 늘려준다.
 ```
 kubectl autoscale deploy app --min=1 --max=10 --cpu-percent=15
 ```
