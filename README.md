@@ -780,6 +780,7 @@ siege -c100 -t60S -r10 -v --content-type "application/json" 'http://app:8080/ord
 ```
 kubectl autoscale deploy app --min=1 --max=10 --cpu-percent=15
 ```
+
 - HPA 설정 확인
 ![image](https://user-images.githubusercontent.com/81279673/123308586-d0b38480-d55e-11eb-96e5-c0459908ebc3.png)
 
