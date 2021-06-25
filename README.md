@@ -800,7 +800,7 @@ kubectl get deploy app -w
 store 서비스가 PVC(PersistentVolumeClaim)를 사용하도록 설정하였다.
 
 - PVC(PersistentVolumeClaim) 생성
-> volume-pve.yaml
+> volume-pvc.yaml
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
