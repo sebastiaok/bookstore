@@ -491,7 +491,7 @@ http POST http://localhost:8081/orders bookName=SUMMER qty=1 price=17000   #Succ
 ```
 ![image](https://user-images.githubusercontent.com/81279673/123035695-b37b9a80-d426-11eb-9c2a-ffeac70fd68b.png)
 
-- 결제서비스가 정상적으로 조회되었는지 확인
+- 결제서비스가 정상적으로 처리되었는지 확인
 ```
 http GET http://localhost:8082/pays   #Success
 ```
